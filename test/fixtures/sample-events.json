@@ -1,0 +1,52 @@
+[
+  {
+    "chat_id": "oc_chat1",
+    "chat_type": "group",
+    "message_type": "text",
+    "message_id": "om_001",
+    "sender_id": "ou_sender1",
+    "content": "@OncallBot 帮忙分析下 payment-service 的报错",
+    "create_time": "1700000000000",
+    "event_id": "ev_001"
+  },
+  {
+    "chat_id": "oc_chat1",
+    "chat_type": "group",
+    "message_type": "text",
+    "message_id": "om_002",
+    "sender_id": "ou_sender2",
+    "content": "这个问题我看看",
+    "create_time": "1700000001000",
+    "event_id": "ev_002"
+  },
+  {
+    "chat_id": "oc_chat1",
+    "chat_type": "p2p",
+    "message_type": "text",
+    "message_id": "om_003",
+    "sender_id": "ou_sender1",
+    "content": "@OncallBot hello",
+    "create_time": "1700000002000",
+    "event_id": "ev_003"
+  },
+  {
+    "chat_id": "oc_chat2",
+    "chat_type": "group",
+    "message_type": "image",
+    "message_id": "om_004",
+    "sender_id": "ou_sender1",
+    "content": "[image]",
+    "create_time": "1700000003000",
+    "event_id": "ev_004"
+  },
+  {
+    "chat_id": "oc_chat1",
+    "chat_type": "group",
+    "message_type": "text",
+    "message_id": "om_005",
+    "sender_id": "ou_sender1",
+    "content": "@张三 @李四 看下这个 P0 故障",
+    "create_time": "1700000004000",
+    "event_id": "ev_005"
+  }
+]
