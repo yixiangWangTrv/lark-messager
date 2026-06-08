@@ -35,12 +35,13 @@ async function preflight() {
   }
   log(`✓ opencode serve reachable at ${config.opencode.base_url}`);
 
-  // Check lark-cli auth
+  // Check lark-cli is available and auth works
   const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
   const execFileAsync = promisify(execFile);
   try {
-    await execFileAsync("lark-cli", ["contact", "+get-user", "--as", config.lark.identity], {
+    // Use im +chat-list as a lightweight auth check (works for bot identity)
+    await execFileAsync("lark-cli", ["im", "+chat-list", "--as", config.lark.identity], {
       timeout: 10000,
     });
     log(`✓ lark-cli auth valid (${config.lark.identity} identity)`);

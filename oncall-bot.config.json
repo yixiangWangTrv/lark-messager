@@ -1,12 +1,12 @@
 {
   "lark": {
-    "identity": "bot",
+    "identity": "user",
     "watch_chat_ids": [],
     "trigger": {
       "bot_id": "",
       "bot_name": "",
-      "user_ids": [],
-      "user_names": [],
+      "user_ids": ["YOUR_OPEN_ID_HERE"],
+      "user_names": ["Yixiang Wang (Ethan)", "Yixiang Wang"],
       "group_ids": [],
       "group_names": []
     }
