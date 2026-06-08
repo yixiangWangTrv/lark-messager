@@ -1,0 +1,14 @@
+{
+  "name": "oncall-bot",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Lark on-call bot powered by opencode",
+  "main": "oncall-bot.js",
+  "scripts": {
+    "start": "node oncall-bot.js",
+    "test": "node --test test/"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

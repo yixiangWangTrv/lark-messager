@@ -1,0 +1,40 @@
+{
+  "lark": {
+    "identity": "bot",
+    "watch_chat_ids": [],
+    "trigger": {
+      "bot_id": "",
+      "bot_name": "",
+      "user_ids": [],
+      "user_names": [],
+      "group_ids": [],
+      "group_names": []
+    }
+  },
+  "context": {
+    "message_count": 10,
+    "include_sender_name": true
+  },
+  "opencode": {
+    "base_url": "http://localhost:4096",
+    "username": "opencode",
+    "password": "",
+    "session_name_format": "{chat_name}-{date}",
+    "analysis_timeout_ms": 180000
+  },
+  "reply": {
+    "default": "in_thread",
+    "rules": [
+      { "match": "*", "reply_to": "in_thread" }
+    ]
+  },
+  "concurrency": {
+    "max_per_chat": 1,
+    "queue_size": 5
+  },
+  "prompt": {
+    "system_prefix": "You are an on-call assistant responsible for analyzing production issues.",
+    "task_instructions": "1. Understand the problem from context\n2. Use Datadog tools to query relevant logs, metrics, and traces\n3. Provide root cause analysis and recommended next steps",
+    "response_format": "Respond in English. Use bullet points for key findings. Include relevant links where available."
+  }
+}
