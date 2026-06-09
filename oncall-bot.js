@@ -7,6 +7,7 @@ import { ContextFetcher } from "./lib/context-fetcher.js";
 import { OpenCodeClient } from "./lib/opencode-client.js";
 import { ReplySender } from "./lib/reply-sender.js";
 import { ChatQueue } from "./lib/queue.js";
+import { detectIntent, buildIntentPrompt, buildSessionOptions } from "./lib/intent-router.js";
 
 // Parse args
 const configPath = process.argv.includes("--config")
@@ -77,27 +78,36 @@ async function handleTrigger(event) {
       log(`  fetching ${config.context.message_count} messages context...`);
       const contextMessages = await contextFetcher.fetchContext(chatId, event.create_time);
 
-      // 2. Resolve chat name
+      // 2. Detect intent
+      const intent = detectIntent(event, contextMessages);
+      log(`  intent: ${intent}`);
+
+      // 3. Resolve chat name
       const chatName = await contextFetcher.getChatName(chatId);
 
-      // 3. Build prompt
-      const prompt = buildPrompt(event, contextMessages);
+      // 4. Build intent-aware prompt
+      const prompt = buildIntentPrompt(intent, config.prompt, event, contextMessages);
 
-      // 4. Find or create session
-      const sessionId = await opencode.findOrCreateSession(chatId, chatName);
+      // 5. Build session options and find/create session
       const today = new Date().toISOString().slice(0, 10);
-      const sessionTitle = config.opencode.session_name_format
-        .replace("{chat_name}", chatName)
-        .replace("{date}", today);
-      log(`  session: "${sessionTitle}" (${sessionId})`);
+      const sessionOptions = buildSessionOptions({
+        intent,
+        chatId,
+        chatName,
+        today,
+        triggerMessageId: messageId,
+        triggerContent: event.content,
+      });
+      const sessionId = await opencode.findOrCreateSession(sessionOptions);
+      log(`  session: "${sessionOptions.title}" (${sessionId})`);
 
-      // 5. Send to opencode
+      // 6. Send to opencode
       log(`  sending to opencode...`);
       const startTime = Date.now();
       const analysis = await opencode.sendMessage(sessionId, prompt);
       log(`  opencode replied (${Math.round((Date.now() - startTime) / 1000)}s)`);
 
-      // 6. Reply
+      // 7. Reply
       await replySender.sendReply(event, analysis);
       log(`→ replied (${messageId})`);
     } catch (err) {
@@ -114,29 +124,6 @@ async function handleTrigger(event) {
   if (result === null) {
     log(`  ⚠ queue full for ${chatId}, dropping message ${messageId}`);
   }
-}
-
-function buildPrompt(event, contextMessages) {
-  const { system_prefix, task_instructions, response_format } = config.prompt;
-  const contextBlock = contextMessages.length > 0
-    ? contextMessages.join("\n")
-    : "(no prior context available)";
-
-  return `${system_prefix}
-
-## Chat Context (recent ${contextMessages.length} messages)
-
-${contextBlock}
-
-## Trigger Message
-
-${event.content}
-
-## Your Task
-
-${task_instructions}
-
-${response_format}`;
 }
 
 // Main

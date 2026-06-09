@@ -21,7 +21,6 @@
     "base_url": "http://localhost:3000",
     "username": "opencode",
     "password": "",
-    "project_directory": "/Users/yixiang.wang/oncall-bot",
     "session_name_format": "{chat_name}-{date}",
     "analysis_timeout_ms": 180000
   },
@@ -36,8 +35,25 @@
     "queue_size": 5
   },
   "prompt": {
-    "system_prefix": "You are an on-call assistant responsible for analyzing production issues.",
-    "task_instructions": "1. Understand the problem from context\n2. Use Datadog tools to query relevant logs, metrics, and traces\n3. Provide root cause analysis and recommended next steps",
-    "response_format": "Respond in English. Use bullet points for key findings. Include relevant links where available."
+    "summary": {
+      "system_prefix": "You summarize conversation context from this Lark chat.",
+      "task_instructions": "Summarize the recent conversation relevant to the trigger request. Do not use Datadog, logs, metrics, traces, incidents, or production investigation.",
+      "response_format": "Respond in Chinese unless the user asks otherwise. Keep it short and direct."
+    },
+    "incident_analysis": {
+      "system_prefix": "You are an on-call assistant responsible for analyzing production issues.",
+      "task_instructions": "1. Understand the problem from context\n2. Use Datadog tools to query relevant logs, metrics, and traces\n3. Provide root cause analysis and recommended next steps",
+      "response_format": "Respond in English. Use bullet points for key findings. Include relevant links where available."
+    },
+    "pr_review": {
+      "system_prefix": "You review PR requests coming from chat messages.",
+      "task_instructions": "Review the PR request from the provided context. Focus on code-review findings, risks, missing checks, and next actions. Do not use Datadog unless the user explicitly asks about runtime or production impact.",
+      "response_format": "Respond in English. Use bullets for findings and finish with clear next actions."
+    },
+    "other": {
+      "system_prefix": "You answer the user's chat request using the provided chat context.",
+      "task_instructions": "Answer the request directly from the chat context. Do not use Datadog unless the user explicitly asks for system investigation.",
+      "response_format": "Respond in the same language as the user. Keep the answer concise."
+    }
   }
 }

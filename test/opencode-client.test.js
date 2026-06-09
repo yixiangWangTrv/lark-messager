@@ -86,6 +86,76 @@ describe("OpenCodeClient", () => {
     });
   });
 
+  it("does not reuse archived sessions", async () => {
+    const requests = [];
+    global.fetch = async (url, options = {}) => {
+      requests.push({ url, options });
+
+      if (url === "http://localhost:4096/session?directory=%2Ftmp%2Fproject" && !options.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: [
+              { id: "archived-session", title: "Ops-summary-2026-06-09", archived: true },
+            ],
+          }),
+        };
+      }
+
+      if (url === "http://localhost:4096/session?directory=%2Ftmp%2Fproject" && options.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ data: { id: "fresh-session" } }),
+        };
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    };
+
+    const client = new OpenCodeClient(baseConfig);
+    const sessionId = await client.findOrCreateSession({
+      title: "Ops-summary-2026-06-09",
+      cacheKey: "summary:oc_chat1:om_99",
+      reuse: true,
+    });
+
+    assert.equal(sessionId, "fresh-session");
+    assert.equal(requests.length, 2);
+    assert.deepEqual(JSON.parse(requests[1].options.body), {
+      title: "Ops-summary-2026-06-09",
+      directory: "/tmp/project",
+    });
+  });
+
+  it("creates a fresh session when reuse is false", async () => {
+    let listCalled = false;
+    global.fetch = async (url, options = {}) => {
+      if (url === "http://localhost:4096/session?directory=%2Ftmp%2Fproject" && !options.method) {
+        listCalled = true;
+        return { ok: true, json: async () => ({ data: [] }) };
+      }
+
+      if (url === "http://localhost:4096/session?directory=%2Ftmp%2Fproject" && options.method === "POST") {
+        return {
+          ok: true,
+          json: async () => ({ data: { id: "fresh-session" } }),
+        };
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    };
+
+    const client = new OpenCodeClient(baseConfig);
+    const sessionId = await client.findOrCreateSession({
+      title: "Ops-other-2026-06-09",
+      cacheKey: "other:oc_chat1:om_123",
+      reuse: false,
+    });
+
+    assert.equal(sessionId, "fresh-session");
+    assert.equal(listCalled, false);
+  });
+
   it("extracts assistant text from wrapped message response", async () => {
     global.fetch = async () => ({
       ok: true,
