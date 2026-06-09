@@ -1,7 +1,8 @@
 {
   "lark": {
     "listen_identity": "bot",
-    "reply_identity": "user",
+    "context_identity": "user",
+    "reply_identity": "bot",
     "watch_chat_ids": [],
     "trigger": {
       "bot_id": "ou_05f296a4c41f1e085b4468e162628690",
@@ -17,9 +18,10 @@
     "include_sender_name": true
   },
   "opencode": {
-    "base_url": "http://localhost:4096",
+    "base_url": "http://localhost:3000",
     "username": "opencode",
     "password": "",
+    "project_directory": "/Users/yixiang.wang/oncall-bot",
     "session_name_format": "{chat_name}-{date}",
     "analysis_timeout_ms": 180000
   },

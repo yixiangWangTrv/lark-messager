@@ -89,7 +89,7 @@ async function handleTrigger(event) {
       const sessionTitle = config.opencode.session_name_format
         .replace("{chat_name}", chatName)
         .replace("{date}", today);
-      log(`  session: "${sessionTitle}" (${sessionId ? "found" : "new"})`);
+      log(`  session: "${sessionTitle}" (${sessionId})`);
 
       // 5. Send to opencode
       log(`  sending to opencode...`);
