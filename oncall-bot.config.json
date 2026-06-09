@@ -28,6 +28,8 @@
     "default": "in_thread",
     "send_processing_notice": true,
     "processing_notice": "Processing your request now. If OpenCode requires approval, the final reply may take a bit longer.",
+    "thread_only_notice": "This message was sent in a thread. I will only use messages from this thread as context.",
+    "trigger_only_fallback_notice": "I could not load thread history, so I will use only the trigger message itself.",
     "rules": [
       { "match": "*", "reply_to": "in_thread" }
     ]

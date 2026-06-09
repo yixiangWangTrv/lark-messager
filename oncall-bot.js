@@ -7,8 +7,9 @@ import { ContextFetcher } from "./lib/context-fetcher.js";
 import { OpenCodeClient } from "./lib/opencode-client.js";
 import { ReplySender } from "./lib/reply-sender.js";
 import { ChatQueue } from "./lib/queue.js";
-import { detectIntent, buildIntentPrompt, buildSessionOptions } from "./lib/intent-router.js";
-import { getProcessingNotice, shouldSendProcessingNotice } from "./lib/processing-notice.js";
+import { detectIntent } from "./lib/intent-router.js";
+import { getProcessingNotice } from "./lib/processing-notice.js";
+import { processTrigger } from "./lib/trigger-orchestration.js";
 
 // Parse args
 const configPath = process.argv.includes("--config")
@@ -71,64 +72,60 @@ async function handleTrigger(event) {
   const messageId = event.message_id;
   const senderId = event.sender_id;
 
-  log(`← trigger: ${senderId} in ${chatId} (${messageId})`);
+  log(`← trigger: ${senderId} in ${chatId} (${messageId})${event.thread_id ? ` thread=${event.thread_id}` : ""}`);
 
-  const result = queue.enqueue(chatId, async () => {
-    try {
-      // 1. Fetch context
-      log(`  fetching ${config.context.message_count} messages context...`);
-      const contextMessages = await contextFetcher.fetchContext(chatId, event.create_time);
+  let processingNoticeLogged = false;
+  const startTime = Date.now();
+  try {
+    const result = await processTrigger({
+      event,
+      config,
+      queue,
+      contextFetcher,
+      opencode: {
+        ...opencode,
+        async findOrCreateSession(sessionOptions) {
+          const result = await opencode.findOrCreateSession(sessionOptions);
+          log(`  session: "${sessionOptions.title}" (${result.sessionId}, ${result.sessionState})`);
+          return result;
+        },
+        async sendMessage(sessionId, prompt) {
+          log("  sending to opencode...");
+          const analysis = await opencode.sendMessage(sessionId, prompt);
+          log(`  opencode replied (${Math.round((Date.now() - startTime) / 1000)}s)`);
+          return analysis;
+        },
+      },
+      replySender: {
+        ...replySender,
+        async sendReply(replyEvent, text, options) {
+          await replySender.sendReply(replyEvent, text, options);
+          if (!processingNoticeLogged && text === getProcessingNotice(config)) {
+            processingNoticeLogged = true;
+            log("  sent processing notice");
+          }
+        },
+      },
+      detectIntentFn(receivedEvent, contextMessages) {
+        const intent = detectIntent(receivedEvent, contextMessages);
+        log(`  intent: ${intent}`);
+        return intent;
+      },
+    });
 
-      // 2. Detect intent
-      const intent = detectIntent(event, contextMessages);
-      log(`  intent: ${intent}`);
-
-      // 3. Resolve chat name
-      const chatName = await contextFetcher.getChatName(chatId);
-
-      // 4. Build intent-aware prompt
-      const prompt = buildIntentPrompt(intent, config.prompt, event, contextMessages);
-
-      // 5. Build session options and find/create session
-      const today = new Date().toISOString().slice(0, 10);
-      const sessionOptions = buildSessionOptions({
-        intent,
-        chatId,
-        chatName,
-        today,
-        triggerMessageId: messageId,
-        triggerContent: event.content,
-      });
-      const sessionId = await opencode.findOrCreateSession(sessionOptions);
-      log(`  session: "${sessionOptions.title}" (${sessionId})`);
-
-      if (shouldSendProcessingNotice(config)) {
-        await replySender.sendReply(event, getProcessingNotice(config), { skipPrefix: true });
-        log("  sent processing notice");
-      }
-
-      // 6. Send to opencode
-      log(`  sending to opencode...`);
-      const startTime = Date.now();
-      const analysis = await opencode.sendMessage(sessionId, prompt);
-      log(`  opencode replied (${Math.round((Date.now() - startTime) / 1000)}s)`);
-
-      // 7. Reply
-      await replySender.sendReply(event, analysis);
-      log(`→ replied (${messageId})`);
-    } catch (err) {
-      log(`✗ error: ${err.message}`);
-      // Try to notify the chat about the failure
-      try {
-        await replySender.sendReply(event, `⚠️ Analysis failed: ${err.message}`);
-      } catch {
-        // Couldn't even send error reply
-      }
+    if (result === null) {
+      log(`  ⚠ queue full for ${chatId}, dropping message ${messageId}`);
+      return;
     }
-  });
 
-  if (result === null) {
-    log(`  ⚠ queue full for ${chatId}, dropping message ${messageId}`);
+    log(`→ replied (${messageId})`);
+  } catch (err) {
+    log(`✗ error: ${err.message}`);
+    try {
+      await replySender.sendReply(event, `⚠️ Analysis failed: ${err.message}`);
+    } catch {
+      // Couldn't even send error reply
+    }
   }
 }
 
@@ -170,4 +167,6 @@ async function main() {
   process.on("SIGTERM", shutdown);
 }
 
-main();
+if (import.meta.url === new URL(process.argv[1], "file:").href) {
+  main();
+}

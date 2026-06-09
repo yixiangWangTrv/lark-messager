@@ -50,9 +50,23 @@ describe("intent routing", () => {
     assert.equal(detectIntent(event, []), "incident_analysis");
   });
 
-  it("uses recent incident context as a weak signal for vague follow-ups", () => {
+  it("does not use recent incident context alone for vague follow-ups", () => {
     const event = { content: "can you take a look?" };
     const contextLines = ["[06/09 15:07] user: payment-service is failing with 500 errors"];
+
+    assert.equal(detectIntent(event, contextLines), "other");
+  });
+
+  it("keeps a neutral trigger as other even when context contains incident keywords", () => {
+    const event = { content: "hi" };
+    const contextLines = ["[06/09 15:07] user: payment-service is failing with 500 errors"];
+
+    assert.equal(detectIntent(event, contextLines), "other");
+  });
+
+  it("still detects incident_analysis when trigger text itself asks for investigation", () => {
+    const event = { content: "hi, help me investigate this error" };
+    const contextLines = [];
 
     assert.equal(detectIntent(event, contextLines), "incident_analysis");
   });
@@ -64,31 +78,102 @@ describe("intent routing", () => {
   });
 
   it("builds a summary prompt without Datadog instructions", () => {
-    const prompt = buildIntentPrompt(
-      "summary",
+    const prompt = buildIntentPrompt({
+      intent: "summary",
       promptConfig,
-      { content: "总结上面的对话" },
-      ["[06/09 15:07] Yixiang: hello"],
-    );
+      event: {
+        content: "总结上面的对话",
+        sender_id: "ou_summary",
+        chat_id: "oc_summary",
+        message_id: "om_summary",
+      },
+      contextResult: {
+        messages: ["[06/09 15:07] Yixiang: hello"],
+        scope: "chat",
+        threadId: null,
+        fetchFailed: false,
+      },
+      sessionState: "new",
+    });
 
     assert.match(prompt, /Summarize only/);
     assert.match(prompt, /Do not use Datadog/);
     assert.doesNotMatch(prompt, /Use Datadog to investigate incidents/);
+    assert.match(prompt, /Read trigger metadata first before using any context\./);
   });
 
-  it("builds prompt sections with config, context, and trigger message", () => {
-    const prompt = buildIntentPrompt(
-      "incident_analysis",
+  it("builds a new-session prompt with trigger metadata and context scope", () => {
+    const prompt = buildIntentPrompt({
+      intent: "other",
       promptConfig,
-      { content: "please investigate this" },
-      ["[06/09 15:07] user: payment-service is failing"],
-    );
+      event: {
+        content: "hi",
+        sender_id: "ou_user1",
+        chat_id: "oc_chat1",
+        message_id: "om_1",
+        thread_id: "omt_1",
+      },
+      contextResult: {
+        messages: ["[06/09 15:07] user: hi there"],
+        scope: "thread",
+        threadId: "omt_1",
+        fetchFailed: false,
+      },
+      sessionState: "new",
+    });
 
-    assert.match(prompt, /^You are an on-call assistant\./);
-    assert.match(prompt, /Use Datadog to investigate incidents\./);
-    assert.match(prompt, /Respond in English\./);
-    assert.match(prompt, /Context:\n\[06\/09 15:07\] user: payment-service is failing/);
+    assert.match(prompt, /^You answer the user's chat request\./);
+    assert.match(prompt, /Answer directly from context\. No Datadog unless explicitly asked\./);
+    assert.match(prompt, /Keep it concise\./);
+    assert.match(prompt, /Read trigger metadata first before using any context\. Use only the declared context scope\./);
+    assert.match(prompt, /This trigger came from a thread\. Use only thread context\. Do not use main-chat context\./);
+    assert.match(prompt, /Trigger metadata:/);
+    assert.match(prompt, /sender_id: ou_user1/);
+    assert.match(prompt, /chat_id: oc_chat1/);
+    assert.match(prompt, /message_id: om_1/);
+    assert.match(prompt, /thread_id: omt_1/);
+    assert.match(prompt, /is_thread_message: true/);
+    assert.match(prompt, /session_state: new/);
+    assert.match(prompt, /context_scope: thread/);
+    assert.match(prompt, /intent: other/);
+    assert.match(prompt, /Context:\n\[06\/09 15:07\] user: hi there/);
+    assert.match(prompt, /User request:\nhi$/);
+  });
+
+  it("builds an existing-session continuation prompt without the full initial framing", () => {
+    const prompt = buildIntentPrompt({
+      intent: "incident_analysis",
+      promptConfig,
+      event: {
+        content: "please investigate this",
+        sender_id: "ou_user2",
+        chat_id: "oc_chat1",
+        message_id: "om_2",
+      },
+      contextResult: {
+        messages: ["[06/09 15:07] user: service is failing"],
+        scope: "chat",
+        threadId: null,
+        fetchFailed: false,
+      },
+      sessionState: "existing",
+    });
+
+    assert.match(prompt, /A new trigger message has arrived in this existing session\./);
+    assert.match(prompt, /Re-evaluate the new trigger first\. Use only the declared context scope\./);
+    assert.match(prompt, /Read trigger metadata first before using any context\./);
+    assert.match(prompt, /sender_id: ou_user2/);
+    assert.match(prompt, /chat_id: oc_chat1/);
+    assert.match(prompt, /message_id: om_2/);
+    assert.doesNotMatch(prompt, /thread_id:/);
+    assert.match(prompt, /is_thread_message: false/);
+    assert.match(prompt, /session_state: existing/);
+    assert.match(prompt, /context_scope: chat/);
+    assert.match(prompt, /intent: incident_analysis/);
+    assert.match(prompt, /Context:\n\[06\/09 15:07\] user: service is failing/);
     assert.match(prompt, /User request:\nplease investigate this$/);
+    assert.doesNotMatch(prompt, /^You are an on-call assistant\./);
+    assert.doesNotMatch(prompt, /Use Datadog to investigate incidents\./);
   });
 
   it("builds incident session options that reuse by chat and day", () => {

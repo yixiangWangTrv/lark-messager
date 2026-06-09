@@ -104,4 +104,33 @@ describe("identity split", () => {
       "--as", "bot",
     ]);
   });
+
+  it("does not retry a reply after a timeout because the first send may already have succeeded", async () => {
+    const calls = [];
+    const timeoutError = new Error("Command timed out after 30000ms");
+    timeoutError.code = "ETIMEDOUT";
+
+    const replySender = new ReplySender({
+      reply: {
+        execFileAsync: async (file, args, options) => {
+          calls.push({ file, args, options });
+          throw timeoutError;
+        },
+      },
+      lark: { reply_identity: "bot" },
+    });
+
+    await replySender.sendReply(
+      { message_id: "om_456", chat_id: "oc_456", content: "help" },
+      "final result"
+    );
+
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, [
+      "im", "+messages-reply",
+      "--message-id", "om_456",
+      "--markdown", "🤖 **[AI-Assisted Reply]**\n\nfinal result",
+      "--as", "bot",
+    ]);
+  });
 });

@@ -24,7 +24,7 @@ describe("OpenCodeClient", () => {
     global.fetch = originalFetch;
   });
 
-  it("creates sessions with directory and reuses wrapped list results", async () => {
+  it("returns existing session state when reusing a listed session", async () => {
     const requests = [];
     global.fetch = async (url, options = {}) => {
       requests.push({ url, options });
@@ -50,13 +50,55 @@ describe("OpenCodeClient", () => {
     };
 
     const client = new OpenCodeClient(baseConfig);
-    const sessionId = await client.findOrCreateSession("chat-1", "Alerts", "2026-06-09");
+    const result = await client.findOrCreateSession("chat-1", "Alerts", "2026-06-09");
 
-    assert.equal(sessionId, "session-existing");
+    assert.deepEqual(result, {
+      sessionId: "session-existing",
+      sessionState: "existing",
+    });
     assert.equal(requests.length, 1);
   });
 
-  it("sends directory when creating a new session", async () => {
+  it("returns existing session state when reusing a cached session", async () => {
+    const requests = [];
+    global.fetch = async (url, options = {}) => {
+      requests.push({ url, options });
+
+      if (url === "http://localhost:4096/session?directory=%2Ftmp%2Fproject" && !options.method) {
+        return {
+          ok: true,
+          json: async () => ({
+            data: [{ id: "session-existing", title: "Alerts-2026-06-09" }],
+          }),
+        };
+      }
+
+      if (url === "http://localhost:4096/session/session-existing?directory=%2Ftmp%2Fproject") {
+        return {
+          ok: true,
+          json: async () => ({ data: { id: "session-existing" } }),
+        };
+      }
+
+      throw new Error(`Unexpected request: ${url}`);
+    };
+
+    const client = new OpenCodeClient(baseConfig);
+    const firstResult = await client.findOrCreateSession("chat-1", "Alerts", "2026-06-09");
+    const secondResult = await client.findOrCreateSession("chat-1", "Alerts", "2026-06-09");
+
+    assert.deepEqual(firstResult, {
+      sessionId: "session-existing",
+      sessionState: "existing",
+    });
+    assert.deepEqual(secondResult, {
+      sessionId: "session-existing",
+      sessionState: "existing",
+    });
+    assert.equal(requests.length, 2);
+  });
+
+  it("returns new session state when creating a fresh session", async () => {
     const requests = [];
     global.fetch = async (url, options = {}) => {
       requests.push({ url, options });
@@ -76,9 +118,12 @@ describe("OpenCodeClient", () => {
     };
 
     const client = new OpenCodeClient(baseConfig);
-    const sessionId = await client.findOrCreateSession("chat-1", "Alerts", "2026-06-09");
+    const result = await client.findOrCreateSession("chat-1", "Alerts", "2026-06-09");
 
-    assert.equal(sessionId, "session-new");
+    assert.deepEqual(result, {
+      sessionId: "session-new",
+      sessionState: "new",
+    });
     assert.equal(requests.length, 2);
     assert.deepEqual(JSON.parse(requests[1].options.body), {
       title: "Alerts-2026-06-09",
@@ -113,13 +158,16 @@ describe("OpenCodeClient", () => {
     };
 
     const client = new OpenCodeClient(baseConfig);
-    const sessionId = await client.findOrCreateSession({
+    const result = await client.findOrCreateSession({
       title: "Ops-summary-2026-06-09",
       cacheKey: "summary:oc_chat1:om_99",
       reuse: true,
     });
 
-    assert.equal(sessionId, "fresh-session");
+    assert.deepEqual(result, {
+      sessionId: "fresh-session",
+      sessionState: "new",
+    });
     assert.equal(requests.length, 2);
     assert.deepEqual(JSON.parse(requests[1].options.body), {
       title: "Ops-summary-2026-06-09",
@@ -146,13 +194,16 @@ describe("OpenCodeClient", () => {
     };
 
     const client = new OpenCodeClient(baseConfig);
-    const sessionId = await client.findOrCreateSession({
+    const result = await client.findOrCreateSession({
       title: "Ops-other-2026-06-09",
       cacheKey: "other:oc_chat1:om_123",
       reuse: false,
     });
 
-    assert.equal(sessionId, "fresh-session");
+    assert.deepEqual(result, {
+      sessionId: "fresh-session",
+      sessionState: "new",
+    });
     assert.equal(listCalled, false);
   });
 
