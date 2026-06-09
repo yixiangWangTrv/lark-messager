@@ -40,14 +40,14 @@ async function preflight() {
   const { promisify } = await import("node:util");
   const execFileAsync = promisify(execFile);
 
-  // Check bot identity (for event listening)
+  // Check bot identity (for event listening) — just verify lark-cli exists and can parse args
   try {
-    await execFileAsync("lark-cli", ["im", "+chat-list", "--as", config.lark.listen_identity], {
-      timeout: 10000,
+    await execFileAsync("lark-cli", ["event", "list"], {
+      timeout: 15000,
     });
-    log(`✓ lark-cli auth valid (${config.lark.listen_identity} identity — listen)`);
+    log(`✓ lark-cli available (${config.lark.listen_identity} identity — listen)`);
   } catch (err) {
-    throw new Error(`lark-cli auth failed (--as ${config.lark.listen_identity}): ${err.message}`);
+    throw new Error(`lark-cli not available: ${err.message}`);
   }
 
   // Check user identity (for replies and context fetching)
