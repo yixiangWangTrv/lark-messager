@@ -35,18 +35,31 @@ async function preflight() {
   }
   log(`✓ opencode serve reachable at ${config.opencode.base_url}`);
 
-  // Check lark-cli is available and auth works
+  // Check lark-cli auth for both identities
   const { execFile } = await import("node:child_process");
   const { promisify } = await import("node:util");
   const execFileAsync = promisify(execFile);
+
+  // Check bot identity (for event listening)
   try {
-    // Use im +chat-list as a lightweight auth check (works for bot identity)
-    await execFileAsync("lark-cli", ["im", "+chat-list", "--as", config.lark.identity], {
+    await execFileAsync("lark-cli", ["im", "+chat-list", "--as", config.lark.listen_identity], {
       timeout: 10000,
     });
-    log(`✓ lark-cli auth valid (${config.lark.identity} identity)`);
+    log(`✓ lark-cli auth valid (${config.lark.listen_identity} identity — listen)`);
   } catch (err) {
-    throw new Error(`lark-cli auth failed (--as ${config.lark.identity}): ${err.message}`);
+    throw new Error(`lark-cli auth failed (--as ${config.lark.listen_identity}): ${err.message}`);
+  }
+
+  // Check user identity (for replies and context fetching)
+  if (config.lark.reply_identity !== config.lark.listen_identity) {
+    try {
+      await execFileAsync("lark-cli", ["contact", "+get-user", "--as", config.lark.reply_identity], {
+        timeout: 10000,
+      });
+      log(`✓ lark-cli auth valid (${config.lark.reply_identity} identity — reply)`);
+    } catch (err) {
+      throw new Error(`lark-cli auth failed (--as ${config.lark.reply_identity}): ${err.message}`);
+    }
   }
 }
 
@@ -136,7 +149,7 @@ async function main() {
   }
 
   const listener = new EventListener({
-    identity: config.lark.identity,
+    identity: config.lark.listen_identity,
     onEvent: (event) => {
       if (filter.shouldTrigger(event)) {
         handleTrigger(event);

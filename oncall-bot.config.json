@@ -1,6 +1,7 @@
 {
   "lark": {
-    "identity": "user",
+    "listen_identity": "bot",
+    "reply_identity": "user",
     "watch_chat_ids": [],
     "trigger": {
       "bot_id": "",
