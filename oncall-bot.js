@@ -8,6 +8,7 @@ import { OpenCodeClient } from "./lib/opencode-client.js";
 import { ReplySender } from "./lib/reply-sender.js";
 import { ChatQueue } from "./lib/queue.js";
 import { detectIntent, buildIntentPrompt, buildSessionOptions } from "./lib/intent-router.js";
+import { getProcessingNotice, shouldSendProcessingNotice } from "./lib/processing-notice.js";
 
 // Parse args
 const configPath = process.argv.includes("--config")
@@ -100,6 +101,11 @@ async function handleTrigger(event) {
       });
       const sessionId = await opencode.findOrCreateSession(sessionOptions);
       log(`  session: "${sessionOptions.title}" (${sessionId})`);
+
+      if (shouldSendProcessingNotice(config)) {
+        await replySender.sendReply(event, getProcessingNotice(config), { skipPrefix: true });
+        log("  sent processing notice");
+      }
 
       // 6. Send to opencode
       log(`  sending to opencode...`);

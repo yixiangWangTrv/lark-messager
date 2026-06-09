@@ -42,6 +42,7 @@ describe("identity split", () => {
     assert.equal(config.lark.context_identity, "user");
     assert.equal(config.lark.reply_identity, "bot");
     assert.equal(config.opencode.project_directory, process.cwd());
+    assert.equal(config.opencode.analysis_timeout_ms, 600000);
   });
 
   it("merges prompt defaults with partial prompt overrides", () => {
@@ -75,5 +76,32 @@ describe("identity split", () => {
     assert.equal(config.lark.listen_identity, "bot");
     assert.equal(config.lark.context_identity, "bot");
     assert.equal(config.lark.reply_identity, "bot");
+  });
+
+  it("can send replies without the default prefix", async () => {
+    const calls = [];
+    const replySender = new ReplySender({
+      reply: {
+        execFileAsync: async (file, args, options) => {
+          calls.push({ file, args, options });
+          return { stdout: "", stderr: "" };
+        },
+      },
+      lark: { reply_identity: "bot" },
+    });
+
+    await replySender.sendReply(
+      { message_id: "om_123", chat_id: "oc_456", content: "help" },
+      "Processing your request now.",
+      { skipPrefix: true }
+    );
+
+    assert.equal(calls.length, 1);
+    assert.deepEqual(calls[0].args, [
+      "im", "+messages-reply",
+      "--message-id", "om_123",
+      "--markdown", "Processing your request now.",
+      "--as", "bot",
+    ]);
   });
 });

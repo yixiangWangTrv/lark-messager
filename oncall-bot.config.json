@@ -22,10 +22,12 @@
     "username": "opencode",
     "password": "",
     "session_name_format": "{chat_name}-{date}",
-    "analysis_timeout_ms": 180000
+    "analysis_timeout_ms": 600000
   },
   "reply": {
     "default": "in_thread",
+    "send_processing_notice": true,
+    "processing_notice": "Processing your request now. If OpenCode requires approval, the final reply may take a bit longer.",
     "rules": [
       { "match": "*", "reply_to": "in_thread" }
     ]
