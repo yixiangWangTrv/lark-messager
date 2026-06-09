@@ -4,9 +4,9 @@
     "reply_identity": "user",
     "watch_chat_ids": [],
     "trigger": {
-      "bot_id": "",
-      "bot_name": "",
-      "user_ids": ["YOUR_OPEN_ID_HERE"],
+      "bot_id": "ou_05f296a4c41f1e085b4468e162628690",
+      "bot_name": "Cyber Yixiang Wang",
+      "user_ids": ["ou_0e518ca3c7ded8734c6841a36232f211"],
       "user_names": ["Yixiang Wang (Ethan)", "Yixiang Wang"],
       "group_ids": [],
       "group_names": []
