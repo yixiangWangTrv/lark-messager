@@ -22,7 +22,11 @@
     "username": "opencode",
     "password": "",
     "session_name_format": "{chat_name}-{date}",
-    "analysis_timeout_ms": 600000
+    "analysis_timeout_ms": 600000,
+    "submit_timeout_ms": 30000,
+    "poll_interval_ms": 3000,
+    "poll_timeout_ms": 1800000,
+    "tool_stuck_threshold_ms": 8000
   },
   "reply": {
     "default": "in_thread",

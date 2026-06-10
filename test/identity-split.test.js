@@ -105,6 +105,17 @@ describe("identity split", () => {
     ]);
   });
 
+  it("sets async opencode config defaults", () => {
+    const config = loadConfig(writeTempConfig({
+      opencode: { base_url: "http://localhost:3000" },
+    }));
+
+    assert.equal(config.opencode.submit_timeout_ms, 30000);
+    assert.equal(config.opencode.poll_interval_ms, 3000);
+    assert.equal(config.opencode.poll_timeout_ms, 1800000);
+    assert.equal(config.opencode.tool_stuck_threshold_ms, 8000);
+  });
+
   it("does not retry a reply after a timeout because the first send may already have succeeded", async () => {
     const calls = [];
     const timeoutError = new Error("Command timed out after 30000ms");
