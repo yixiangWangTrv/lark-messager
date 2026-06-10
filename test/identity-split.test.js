@@ -45,6 +45,17 @@ describe("identity split", () => {
     assert.equal(config.opencode.analysis_timeout_ms, 600000);
   });
 
+  it("defaults async polling config fields when not specified", () => {
+    const config = loadConfig(writeTempConfig({
+      opencode: { base_url: "http://localhost:3000" },
+    }));
+
+    assert.equal(config.opencode.submit_timeout_ms, 30000);
+    assert.equal(config.opencode.poll_interval_ms, 3000);
+    assert.equal(config.opencode.poll_timeout_ms, 1800000);
+    assert.equal(config.opencode.tool_stuck_threshold_ms, 8000);
+  });
+
   it("merges prompt defaults with partial prompt overrides", () => {
     const defaults = loadConfig(writeTempConfig({
       opencode: { base_url: "http://localhost:3000" },
@@ -103,17 +114,6 @@ describe("identity split", () => {
       "--markdown", "Processing your request now.",
       "--as", "bot",
     ]);
-  });
-
-  it("sets async opencode config defaults", () => {
-    const config = loadConfig(writeTempConfig({
-      opencode: { base_url: "http://localhost:3000" },
-    }));
-
-    assert.equal(config.opencode.submit_timeout_ms, 30000);
-    assert.equal(config.opencode.poll_interval_ms, 3000);
-    assert.equal(config.opencode.poll_timeout_ms, 1800000);
-    assert.equal(config.opencode.tool_stuck_threshold_ms, 8000);
   });
 
   it("does not retry a reply after a timeout because the first send may already have succeeded", async () => {
