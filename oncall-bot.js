@@ -40,9 +40,9 @@ async function preflight() {
   // Check opencode serve
   const healthy = await opencode.healthCheck();
   if (!healthy) {
-    throw new Error(`opencode serve not reachable at ${config.opencode.base_url}`);
+    throw new Error(`opencode serve not reachable at ${config.opencode.base_url} (configured in opencode.base_url)`);
   }
-  log(`✓ opencode serve reachable at ${config.opencode.base_url}`);
+  log(`✓ opencode serve reachable at ${config.opencode.base_url} (change via dashboard or config file)`);
 
   // Check lark-cli auth for both identities
   const { execFile } = await import("node:child_process");
@@ -155,7 +155,7 @@ async function main() {
     if (config.dashboard.enabled) {
       const dashboard = new DashboardServer({ config, botEvents, configPath });
       await dashboard.start();
-      log(`✓ dashboard running at http://localhost:${config.dashboard.port} ← open in browser`);
+      log(`\x1b[31m✓ dashboard running at http://localhost:${config.dashboard.port} ← open in browser\x1b[0m`);
     }
   } catch (err) {
     instanceLock?.release();
