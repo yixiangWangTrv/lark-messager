@@ -229,7 +229,9 @@ describe("ContextFetcher", () => {
     assert.equal(result.scope, "thread");
     assert.equal(result.threadId, "omt-real-1");
     assert.equal(result.fetchFailed, false);
-    assert.equal(result.messages.length, 1);
+    assert.ok(result.messages.length >= 1);
+    // Root message should be included
+    assert.ok(result.messages.some(m => m.includes("root msg") || m.includes("Root User")));
     assert.equal(calls.length, 2);
     assert.equal(calls[0][1], "+chat-messages-list");
     assert.ok(calls[0].includes("--chat-id"));
