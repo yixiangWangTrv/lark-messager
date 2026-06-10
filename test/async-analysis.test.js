@@ -129,4 +129,38 @@ describe("AsyncAnalysis", () => {
     const stuckReplies = replies.filter(r => r.text.includes("approval"));
     assert.equal(stuckReplies.length, 1);
   });
+
+  it("fallback matching ignores candidates with no timestamp and returns latest if none match", async () => {
+    const submittedAt = Date.now();
+    const replies = [];
+
+    const client = {
+      submitMessage: async () => ({ sessionId: "s1", submittedAt, userMessageId: null }),
+      listMessages: async () => [
+        // Old message with no timestamp — should NOT match
+        {
+          info: { role: "assistant", time: {}, finish: "stop", parentID: null },
+          parts: [{ type: "text", text: "stale answer" }],
+        },
+        // New message created after submission — should match
+        {
+          info: { role: "assistant", time: { created: submittedAt + 100, completed: submittedAt + 200 }, finish: "stop", parentID: null },
+          parts: [{ type: "text", text: "fresh answer" }],
+        },
+      ],
+    };
+    const replySender = {
+      sendReply: async (event, text, opts) => { replies.push({ text, opts }); },
+    };
+
+    const analysis = new AsyncAnalysis({ client, replySender, config: {
+      opencode: { poll_interval_ms: 10, poll_timeout_ms: 5000, tool_stuck_threshold_ms: 9999 },
+      reply: {},
+    }});
+
+    await analysis.run({ chat_id: "c1", message_id: "m1" }, "s1", "analyze this");
+
+    assert.equal(replies.length, 1);
+    assert.ok(replies[0].text.includes("fresh answer"), `Expected "fresh answer" but got: ${replies[0].text}`);
+  });
 });
