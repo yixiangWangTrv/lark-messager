@@ -19,6 +19,38 @@ function assistantMsg({ completed = null, finish = null, toolStatus = null, text
 }
 
 describe("AsyncAnalysis", () => {
+  it("submits using the resolved sessionId string rather than a session result object", async () => {
+    const submitCalls = [];
+    const replies = [];
+    const client = {
+      submitMessage: async (sessionId, _prompt) => {
+        submitCalls.push(sessionId);
+        return { sessionId, submittedAt: Date.now() - 100, userMessageId: "msg_user_001" };
+      },
+      listMessages: async () => [
+        assistantMsg({ completed: Date.now(), finish: "stop", text: "done!" }),
+      ],
+    };
+    const replySender = {
+      sendReply: async (_event, text, opts) => { replies.push({ text, opts }); },
+    };
+
+    const analysis = new AsyncAnalysis({ client, replySender, config: {
+      opencode: { poll_interval_ms: 10, poll_timeout_ms: 5000, tool_stuck_threshold_ms: 9999 },
+      reply: {},
+    }});
+
+    await analysis.run(
+      { chat_id: "c1", message_id: "m1" },
+      { sessionId: "ses_123", sessionState: "new" },
+      "analyze this",
+    );
+
+    assert.deepEqual(submitCalls, ["ses_123"]);
+    assert.equal(replies.length, 1);
+    assert.ok(replies[0].text.includes("done!"));
+  });
+
   it("delivers final reply when assistant message completes", async () => {
     const replies = [];
     const client = {
