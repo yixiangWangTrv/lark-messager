@@ -7,8 +7,13 @@
     "trigger": {
       "bot_id": "ou_05f296a4c41f1e085b4468e162628690",
       "bot_name": "Cyber Yixiang Wang",
-      "user_ids": ["ou_0e518ca3c7ded8734c6841a36232f211"],
-      "user_names": ["Yixiang Wang (Ethan)", "Yixiang Wang"],
+      "user_ids": [
+        "ou_0e518ca3c7ded8734c6841a36232f211"
+      ],
+      "user_names": [
+        "Yixiang Wang (Ethan)",
+        "Yixiang Wang"
+      ],
       "group_ids": [],
       "group_names": []
     }
@@ -18,25 +23,29 @@
     "include_sender_name": true
   },
   "opencode": {
-    "base_url": "http://localhost:3000",
     "username": "opencode",
     "password": "",
-    "session_name_format": "{chat_name}-{date}",
     "analysis_timeout_ms": 600000,
     "submit_timeout_ms": 30000,
     "poll_interval_ms": 3000,
     "poll_timeout_ms": 1800000,
-    "tool_stuck_threshold_ms": 8000
+    "tool_stuck_threshold_ms": 8000,
+    "project_directory": "/Users/yixiang.wang/oncall-bot",
+    "base_url": "http://localhost:4096",
+    "session_name_format": "{chat_name}-{date}"
   },
   "reply": {
     "default": "in_thread",
+    "rules": [
+      {
+        "match": "*",
+        "reply_to": "in_thread"
+      }
+    ],
     "send_processing_notice": true,
     "processing_notice": "Processing your request now. If OpenCode requires approval, the final reply may take a bit longer.",
     "thread_only_notice": "This message was sent in a thread. I will only use messages from this thread as context.",
-    "trigger_only_fallback_notice": "I could not load thread history, so I will use only the trigger message itself.",
-    "rules": [
-      { "match": "*", "reply_to": "in_thread" }
-    ]
+    "trigger_only_fallback_notice": "I could not load thread history, so I will use only the trigger message itself."
   },
   "concurrency": {
     "max_per_chat": 1,
@@ -50,22 +59,22 @@
     "summary": {
       "system_prefix": "You summarize conversation context from this Lark chat.",
       "task_instructions": "Summarize the recent conversation relevant to the trigger request. Do not use Datadog, logs, metrics, traces, incidents, or production investigation.",
-      "response_format": "Respond in Chinese unless the user asks otherwise. Keep it short and direct."
+      "response_format": "Respond in English."
     },
     "incident_analysis": {
       "system_prefix": "You are an on-call assistant responsible for analyzing production issues.",
       "task_instructions": "1. Understand the problem from context\n2. Use Datadog tools to query relevant logs, metrics, and traces\n3. Provide root cause analysis and recommended next steps",
-      "response_format": "Respond in English. Use bullet points for key findings. Include relevant links where available."
+      "response_format": "Respond in English."
     },
     "pr_review": {
       "system_prefix": "You review PR requests coming from chat messages.",
       "task_instructions": "Review the PR request from the provided context. Focus on code-review findings, risks, missing checks, and next actions. Do not use Datadog unless the user explicitly asks about runtime or production impact.",
-      "response_format": "Respond in English. Use bullets for findings and finish with clear next actions."
+      "response_format": "Respond in English."
     },
     "other": {
       "system_prefix": "You answer the user's chat request using the provided chat context.",
       "task_instructions": "Answer the request directly from the chat context. Do not use Datadog unless the user explicitly asks for system investigation.",
-      "response_format": "Respond in the same language as the user. Keep the answer concise."
+      "response_format": "Respond in English."
     }
   }
 }

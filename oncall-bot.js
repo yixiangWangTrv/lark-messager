@@ -33,16 +33,48 @@ const replySender = new ReplySender(config);
 const queue = new ChatQueue(config.concurrency);
 const triggerGuard = new TriggerGuard();
 
+// Detect actual opencode serve port from running processes
+async function detectOpencodeServePort() {
+  const { execFile } = await import("node:child_process");
+  const { promisify } = await import("node:util");
+  const execFileAsync = promisify(execFile);
+
+  try {
+    const { stdout } = await execFileAsync("ps", ["aux"], { timeout: 5000 });
+    const lines = stdout.split("\n").filter((l) => l.includes("opencode serve") || l.includes("opencode") && l.includes("--port"));
+    for (const line of lines) {
+      const portMatch = line.match(/--port\s+(\d+)/);
+      if (portMatch) {
+        return parseInt(portMatch[1], 10);
+      }
+    }
+  } catch {
+    // ps failed, fall through
+  }
+  return null;
+}
+
 // Startup checks
 async function preflight() {
   log("Running preflight checks...");
 
-  // Check opencode serve
-  const healthy = await opencode.healthCheck();
+  // Check opencode serve — try configured URL first, then auto-detect from running process
+  let healthy = await opencode.healthCheck();
   if (!healthy) {
-    throw new Error(`opencode serve not reachable at ${config.opencode.base_url} (configured in opencode.base_url)`);
+    log(`  opencode serve not reachable at ${config.opencode.base_url}, auto-detecting...`);
+    const detectedPort = await detectOpencodeServePort();
+    if (detectedPort) {
+      const detectedUrl = `http://localhost:${detectedPort}`;
+      log(`  found opencode serve process on port ${detectedPort}, trying ${detectedUrl}...`);
+      config.opencode.base_url = detectedUrl;
+      opencode.baseUrl = detectedUrl;
+      healthy = await opencode.healthCheck();
+    }
+    if (!healthy) {
+      throw new Error(`opencode serve not reachable (tried config: ${config.opencode.base_url}, auto-detect: ${detectedPort || "none found"})`);
+    }
   }
-  log(`✓ opencode serve reachable at ${config.opencode.base_url} (change via dashboard or config file)`);
+  log(`✓ opencode serve reachable at ${config.opencode.base_url}`);
 
   // Check lark-cli auth for both identities
   const { execFile } = await import("node:child_process");
