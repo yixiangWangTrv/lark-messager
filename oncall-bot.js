@@ -8,11 +8,9 @@ import { ContextFetcher } from "./lib/context-fetcher.js";
 import { OpenCodeClient } from "./lib/opencode-client.js";
 import { ReplySender } from "./lib/reply-sender.js";
 import { ChatQueue } from "./lib/queue.js";
-import { TriggerGuard } from "./lib/trigger-guard.js";
 import { detectIntent, buildIntentPrompt, buildSessionOptions } from "./lib/intent-router.js";
 import { getProcessingNotice, shouldSendProcessingNotice } from "./lib/processing-notice.js";
 import { acquireSingleInstanceLock } from "./lib/single-instance-lock.js";
-import { processTrigger } from "./lib/trigger-orchestration.js";
 import { AsyncAnalysis } from "./lib/async-analysis.js";
 import { PendingJobs } from "./lib/pending-jobs.js";
 
@@ -31,7 +29,6 @@ const contextFetcher = new ContextFetcher(config);
 const opencode = new OpenCodeClient(config);
 const replySender = new ReplySender(config);
 const queue = new ChatQueue(config.concurrency);
-const triggerGuard = new TriggerGuard();
 const pendingJobs = new PendingJobs();
 const asyncAnalysis = new AsyncAnalysis({ client: opencode, replySender, config });
 
