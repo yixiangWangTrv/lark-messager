@@ -281,6 +281,32 @@ describe("OpenCodeClient", () => {
     assert.equal(tracking.userMessageId, null);
   });
 
+  it("submitMessage times out using submit_timeout_ms not analysis_timeout_ms", async () => {
+    global.fetch = async (_url, options = {}) => new Promise((_, reject) => {
+      options.signal?.addEventListener("abort", () => {
+        const err = new Error("This operation was aborted");
+        err.name = "AbortError";
+        reject(err);
+      }, { once: true });
+    });
+
+    const client = new OpenCodeClient({
+      opencode: {
+        base_url: "http://localhost:4096",
+        username: "opencode",
+        password: "",
+        analysis_timeout_ms: 60000,
+        submit_timeout_ms: 50,
+        project_directory: "/tmp/project",
+      },
+    });
+
+    await assert.rejects(
+      () => client.submitMessage("session-1", "hello"),
+      /timed out after 50ms/
+    );
+  });
+
   it("listMessages returns parsed message array", async () => {
     const messages = [
       { info: { id: "msg_u1", role: "user" }, parts: [] },
