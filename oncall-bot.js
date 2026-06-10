@@ -155,7 +155,7 @@ async function main() {
     if (config.dashboard.enabled) {
       const dashboard = new DashboardServer({ config, botEvents, configPath });
       await dashboard.start();
-      log(`✓ dashboard running at http://localhost:${config.dashboard.port}`);
+      log(`✓ dashboard running at http://localhost:${config.dashboard.port} ← open in browser`);
     }
   } catch (err) {
     instanceLock?.release();
