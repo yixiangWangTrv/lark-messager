@@ -161,7 +161,7 @@ describe("ContextFetcher", () => {
     assert.ok(!calls[0].includes("--thread-id"));
   });
 
-  it("resolves an om thread reference to the real thread_id before listing thread messages", async () => {
+  it("resolves an om thread reference to the real thread_id via chat-messages-list before listing thread messages", async () => {
     const calls = [];
     const fetcher = new ContextFetcher({
       context: { message_count: 10 },
@@ -169,15 +169,28 @@ describe("ContextFetcher", () => {
       contextFetcherExec: async (_bin, args) => {
         calls.push(args);
 
-        if (args[0] === "api") {
+        if (args[1] === "+chat-messages-list") {
           return {
             stdout: JSON.stringify({
-              code: 0,
               data: {
-                items: [
+                messages: [
                   {
                     message_id: "om_root_1",
                     thread_id: "omt-real-1",
+                    create_time: "1700000000000",
+                    sender: { name: "Root User" },
+                    msg_type: "text",
+                    body: { content: '{"text":"root msg"}' },
+                    thread_replies: [
+                      {
+                        message_id: "om_reply_in_thread",
+                        thread_id: "omt-real-1",
+                        create_time: "1700000005000",
+                        sender: { name: "Thread User" },
+                        msg_type: "text",
+                        body: { content: '{"text":"reply in thread"}' },
+                      },
+                    ],
                   },
                 ],
               },
@@ -185,26 +198,30 @@ describe("ContextFetcher", () => {
           };
         }
 
-        return {
-          stdout: JSON.stringify({
-            data: {
-              messages: [
-                {
-                  create_time: "1700000000000",
-                  sender: { name: "Thread User" },
-                  msg_type: "text",
-                  body: { content: '{"text":"resolved thread message"}' },
-                },
-              ],
-            },
-          }),
-        };
+        if (args[1] === "+threads-messages-list") {
+          return {
+            stdout: JSON.stringify({
+              data: {
+                messages: [
+                  {
+                    create_time: "1700000000000",
+                    sender: { name: "Thread User" },
+                    msg_type: "text",
+                    body: { content: '{"text":"resolved thread message"}' },
+                  },
+                ],
+              },
+            }),
+          };
+        }
+
+        return { stdout: "{}" };
       },
     });
 
     const result = await fetcher.fetchContext({
       chatId: "oc_chat1",
-      threadId: "om_root_1",
+      threadId: "om_reply_in_thread",
       beforeTimestamp: "1700000010000",
       triggerMessage: "hi",
     });
@@ -214,12 +231,11 @@ describe("ContextFetcher", () => {
     assert.equal(result.fetchFailed, false);
     assert.equal(result.messages.length, 1);
     assert.equal(calls.length, 2);
-    assert.equal(calls[0][0], "api");
-    assert.equal(calls[0][1], "GET");
-    assert.equal(calls[0][2], "/open-apis/im/v1/messages/om_root_1");
+    assert.equal(calls[0][1], "+chat-messages-list");
+    assert.ok(calls[0].includes("--chat-id"));
+    assert.ok(calls[0].includes("oc_chat1"));
     assert.equal(calls[1][1], "+threads-messages-list");
     assert.ok(calls[1].includes("--thread"));
     assert.ok(calls[1].includes("omt-real-1"));
-    assert.ok(!calls[1].includes("om_root_1"));
   });
 });
