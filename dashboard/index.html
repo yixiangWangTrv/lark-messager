@@ -201,13 +201,16 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 
     <div class="card">
       <h3>&#x1F3AD; Distilled Styles</h3>
-      <div id="activeStyleBanner" style="display:none;background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
+      <div id="activeStyleBanner" style="display:none;background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;padding:10px 16px;margin-bottom:12px;align-items:center;gap:12px">
         <span style="font-size:14px">&#x1F3A4;</span>
         <span style="flex:1;font-size:13px"><strong id="activeStyleLabel">Active Style:</strong> <span id="activeStyleName">-</span></span>
         <button class="secondary" id="deactivateBtn" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">Deactivate</button>
       </div>
       <div id="distilledList">
         <p class="empty">No distilled styles yet. Create one above.</p>
+      </div>
+      <div id="distillActions" style="display:none;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px">
+        <button class="danger" onclick="clearAllDistilled()" style="font-size:12px" id="clearAllBtn">Clear All</button>
       </div>
     </div>
 
@@ -636,6 +639,8 @@ const i18n={
     fetchingStyle:"Fetching messages and analyzing style...",
     distillSuccess:"Distilled successfully!",
     test:"Test",
+    clearAll:"Clear All",
+    clearAllConfirm:"Delete ALL distilled styles and deactivate? This cannot be undone.",
     // Relation labels
     relPeer:"Peer",
     relJunior:"Junior",
@@ -720,6 +725,8 @@ const i18n={
     fetchingStyle:"\u6b63\u5728\u83b7\u53d6\u6d88\u606f\u5e76\u5206\u6790\u98ce\u683c...",
     distillSuccess:"\u84b8\u998f\u6210\u529f\uff01",
     test:"\u6d4b\u8bd5",
+    clearAll:"\u4e00\u952e\u6e05\u9664",
+    clearAllConfirm:"\u5220\u9664\u6240\u6709\u84b8\u998f\u98ce\u683c\u5e76\u53d6\u6d88\u5e94\u7528\uff1f\u6b64\u64cd\u4f5c\u4e0d\u53ef\u64a4\u9500\u3002",
     // Relation labels
     relPeer:"\u5e73\u7ea7",
     relJunior:"\u4e0b\u7ea7",
@@ -1352,6 +1359,13 @@ async function loadDistilledList() {
         </div>
       </div>`;
     }).join("");
+
+    // Show/hide actions bar and update clear all button label
+    const actionsBar = document.getElementById("distillActions");
+    if (actionsBar) {
+      actionsBar.style.display = list.length ? "flex" : "none";
+      document.getElementById("clearAllBtn").textContent = t("clearAll");
+    }
   } catch (e) {
     console.error("loadDistilledList", e);
   }
@@ -1378,6 +1392,19 @@ async function deactivateStyle() {
       body: JSON.stringify({ slug: null }),
     });
     loadDistilledList();
+  } catch (e) {
+    alert("Failed: " + e.message);
+  }
+}
+
+async function clearAllDistilled() {
+  if (!confirm(t("clearAllConfirm"))) return;
+  try {
+    await api("/api/distill/clear-all", { method: "POST" });
+    loadDistilledList();
+    // Hide chat card if open
+    document.getElementById("distillChatCard").style.display = "none";
+    distillChatSlug = null;
   } catch (e) {
     alert("Failed: " + e.message);
   }
