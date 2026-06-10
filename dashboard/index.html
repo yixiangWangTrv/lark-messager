@@ -515,9 +515,18 @@ async function init(){
     if(!localStorage.getItem("oncall-bot-theme")&&cfg.dashboard&&cfg.dashboard.theme){
       setTheme(cfg.dashboard.theme);
     }
+    // Sync language from server config
+    if(cfg.dashboard&&cfg.dashboard.language){
+      const langMap={zh:"Respond in Chinese.",en:"Respond in English."};
+      const sel=document.getElementById("langSelect");
+      if(langMap[cfg.dashboard.language]){
+        sel.value=langMap[cfg.dashboard.language];
+      }
+    }
   }catch(e){console.error("config",e)}
 
   await loadTriggerModes();
+  refreshUILang();
   await loadPuaMode();
   await loadDistilledList();
 
@@ -1028,6 +1037,7 @@ async function savePuaMode(){
 
 // --- Distill Feature ---
 let distillSelectedOpenId = null;
+let distillSelectedP2pChatId = null;
 let distillSelectedRelation = "peer";
 let distillSelectedSource = "p2p";
 let distillChatSlug = null;
@@ -1077,7 +1087,7 @@ async function distillSearchContact() {
       return;
     }
     el.innerHTML = results.map(u =>
-      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${esc(u.open_id)}','${esc(u.name)}')">
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${esc(u.open_id)}','${esc(u.name)}','${esc(u.p2p_chat_id||"")}')">
         <div class="toggle-info">
           <div class="toggle-title" style="font-size:13px">${esc(u.name)}</div>
           <div class="toggle-desc">${esc(u.department || "")}</div>
@@ -1089,8 +1099,9 @@ async function distillSearchContact() {
   }
 }
 
-function selectDistillContact(openId, name) {
+function selectDistillContact(openId, name, p2pChatId) {
   distillSelectedOpenId = openId;
+  distillSelectedP2pChatId = p2pChatId || null;
   document.getElementById("distillName").value = name;
   document.getElementById("distillSearchResults").innerHTML = `<span class="note" style="color:var(--success)">\u2713 Selected: ${esc(name)}</span>`;
 }
@@ -1115,6 +1126,7 @@ async function startDistill() {
       body: JSON.stringify({
         name,
         openId: distillSelectedOpenId,
+        p2pChatId: distillSelectedP2pChatId,
         relation: distillSelectedRelation,
         limit,
         source: distillSelectedSource,
