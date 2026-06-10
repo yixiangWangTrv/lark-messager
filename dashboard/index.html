@@ -201,6 +201,11 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 
     <div class="card">
       <h3>&#x1F3AD; Distilled Styles</h3>
+      <div id="activeStyleBanner" style="display:none;background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:14px">&#x1F3A4;</span>
+        <span style="flex:1;font-size:13px"><strong>Active Style:</strong> <span id="activeStyleName">-</span></span>
+        <button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">Deactivate</button>
+      </div>
       <div id="distilledList">
         <p class="empty">No distilled styles yet. Create one above.</p>
       </div>
@@ -1261,6 +1266,18 @@ async function startDistill() {
 async function loadDistilledList() {
   try {
     const list = await api("/api/distill/list");
+    const activeRes = await api("/api/distill/active-style");
+    const activeSlug = activeRes?.slug || null;
+
+    // Update active style banner
+    const banner = document.getElementById("activeStyleBanner");
+    if (activeSlug) {
+      banner.style.display = "flex";
+      document.getElementById("activeStyleName").textContent = activeRes.name || activeSlug;
+    } else {
+      banner.style.display = "none";
+    }
+
     const el = document.getElementById("distilledList");
     if (!list.length) {
       el.innerHTML = '<p class="empty">No distilled styles yet. Create one above.</p>';
@@ -1268,7 +1285,11 @@ async function loadDistilledList() {
     }
     el.innerHTML = list.map(d => {
       const tags = (d.persona?.style_tags || []).map(t => `<code>${esc(t)}</code>`).join(" ");
-      return `<div class="toggle-card" style="padding:12px 16px;margin-bottom:8px">
+      const isActive = d.slug === activeSlug;
+      const applyBtn = isActive
+        ? `<button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">\u2714 Active</button>`
+        : `<button onclick="activateStyle('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} Apply</button>`;
+      return `<div class="toggle-card${isActive ? " active" : ""}" style="padding:12px 16px;margin-bottom:8px">
         <div class="toggle-icon" style="font-size:16px">\u{1F9EC}</div>
         <div class="toggle-info" style="flex:1">
           <div class="toggle-title" style="font-size:14px">${esc(d.name)} <span style="font-size:12px;color:var(--text-secondary)">${esc(d.relationLabel || d.relation)}</span></div>
@@ -1276,6 +1297,7 @@ async function loadDistilledList() {
           <div style="margin-top:4px;font-size:11px">${tags}</div>
         </div>
         <div style="display:flex;gap:6px">
+          ${applyBtn}
           <button onclick="openDistillChat('${esc(d.slug)}','${esc(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} Test</button>
           <button class="danger" onclick="deleteDistillProfile('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
         </div>
@@ -1283,6 +1305,32 @@ async function loadDistilledList() {
     }).join("");
   } catch (e) {
     console.error("loadDistilledList", e);
+  }
+}
+
+async function activateStyle(slug) {
+  try {
+    await api("/api/distill/active-style", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug }),
+    });
+    loadDistilledList();
+  } catch (e) {
+    alert("Failed: " + e.message);
+  }
+}
+
+async function deactivateStyle() {
+  try {
+    await api("/api/distill/active-style", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: null }),
+    });
+    loadDistilledList();
+  } catch (e) {
+    alert("Failed: " + e.message);
   }
 }
 
