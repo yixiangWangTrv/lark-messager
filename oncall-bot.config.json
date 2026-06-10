@@ -42,6 +42,10 @@
     "max_per_chat": 1,
     "queue_size": 5
   },
+  "dashboard": {
+    "port": 8015,
+    "enabled": true
+  },
   "prompt": {
     "summary": {
       "system_prefix": "You summarize conversation context from this Lark chat.",

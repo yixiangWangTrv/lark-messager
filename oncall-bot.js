@@ -13,6 +13,8 @@ import { getProcessingNotice, shouldSendProcessingNotice } from "./lib/processin
 import { acquireSingleInstanceLock } from "./lib/single-instance-lock.js";
 import { AsyncAnalysis } from "./lib/async-analysis.js";
 import { PendingJobs } from "./lib/pending-jobs.js";
+import { DashboardServer } from "./lib/dashboard-server.js";
+import { botEvents } from "./lib/bot-events.js";
 
 // Parse args
 const configPath = process.argv.includes("--config")
@@ -114,6 +116,13 @@ async function handleTrigger(event) {
       });
       const sessionId = await opencode.findOrCreateSession(sessionOptions);
       log(`  session: "${sessionOptions.title}" (${sessionId})`);
+      botEvents.emit("session:created", {
+        sessionId,
+        title: sessionOptions.title,
+        chatName: chatName || sessionOptions.title.split("-")[0],
+        intent,
+        createdAt: new Date().toISOString(),
+      });
 
       // 6. Send processing notice immediately
       if (shouldSendProcessingNotice(config)) {
@@ -160,6 +169,13 @@ async function main() {
       lockPath: resolve(".oncall-bot.lock"),
     });
     await preflight();
+
+    // Start dashboard
+    if (config.dashboard.enabled) {
+      const dashboard = new DashboardServer({ config, botEvents, configPath });
+      await dashboard.start();
+      log(`✓ dashboard running at http://localhost:${config.dashboard.port}`);
+    }
   } catch (err) {
     instanceLock?.release();
     log(`✗ Preflight failed: ${err.message}`);
