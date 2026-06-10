@@ -249,7 +249,8 @@ async function main() {
 
     // Start dashboard
     if (config.dashboard.enabled) {
-      const dashboard = new DashboardServer({ config, botEvents, configPath });
+      const dashboard = new DashboardServer({ config, botEvents, configPath, opencode });
+      dashboard.setOpenCodeClient(opencode);
       await dashboard.start();
       log(`\x1b[31m✓ dashboard running at http://localhost:${config.dashboard.port} ← open in browser\x1b[0m`);
     }

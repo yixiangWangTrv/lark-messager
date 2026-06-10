@@ -4,49 +4,120 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oncall Bot Dashboard</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect x='20' y='30' width='60' height='50' rx='10' fill='%234fc3f7'/%3E%3Crect x='30' y='45' width='12' height='12' rx='3' fill='%23fff'/%3E%3Crect x='58' y='45' width='12' height='12' rx='3' fill='%23fff'/%3E%3Crect x='40' y='65' width='20' height='5' rx='2' fill='%23fff'/%3E%3Crect x='45' y='15' width='10' height='15' rx='3' fill='%234fc3f7'/%3E%3Ccircle cx='50' cy='12' r='5' fill='%234fc3f7'/%3E%3Crect x='10' y='50' width='10' height='6' rx='3' fill='%234fc3f7'/%3E%3Crect x='80' y='50' width='10' height='6' rx='3' fill='%234fc3f7'/%3E%3C/svg%3E">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh}
-a{color:#4fc3f7;text-decoration:none}
-.header{background:#16213e;border-bottom:1px solid #0f3460;padding:12px 24px;display:flex;align-items:center;gap:16px}
-.header h1{font-size:18px;font-weight:600;color:#4fc3f7}
-.status-bar{display:flex;align-items:center;gap:16px;margin-left:auto;font-size:13px;color:#aaa}
+/* Theme variables */
+:root,[data-theme="dark"]{
+  --bg-body:#1a1a2e;--bg-surface:#16213e;--bg-input:#1a1a2e;--bg-elevated:#0f3460;
+  --border:#0f3460;--border-hover:#4fc3f7;
+  --text-primary:#e0e0e0;--text-secondary:#aaa;--text-muted:#666;
+  --accent:#4fc3f7;--accent-bg:rgba(79,195,247,.1);--accent-text:#1a1a2e;
+  --toggle-bg:#0f3460;--toggle-knob:#666;
+  --danger:#f44336;--success:#4caf50;--warn:#ff9800;
+  --shadow:0 2px 8px rgba(0,0,0,.3);
+  --card-hover-bg:#1a1a3a;
+}
+[data-theme="light"]{
+  --bg-body:#f8fafc;--bg-surface:#ffffff;--bg-input:#f1f5f9;--bg-elevated:#e2e8f0;
+  --border:#e2e8f0;--border-hover:#3b82f6;
+  --text-primary:#1e293b;--text-secondary:#64748b;--text-muted:#94a3b8;
+  --accent:#3b82f6;--accent-bg:rgba(59,130,246,.08);--accent-text:#ffffff;
+  --toggle-bg:#cbd5e1;--toggle-knob:#94a3b8;
+  --danger:#ef4444;--success:#22c55e;--warn:#f59e0b;
+  --shadow:0 2px 8px rgba(0,0,0,.06);
+  --card-hover-bg:#f1f5f9;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg-body);color:var(--text-primary);min-height:100vh;transition:background .3s,color .3s}
+a{color:var(--accent);text-decoration:none}
+.header{background:var(--bg-surface);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:16px;transition:background .3s}
+.header h1{font-size:18px;font-weight:600;color:var(--accent)}
+.status-bar{display:flex;align-items:center;gap:16px;margin-left:auto;font-size:13px;color:var(--text-secondary)}
 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
-.dot.green{background:#4caf50}
-.dot.red{background:#f44336}
-.tabs{display:flex;background:#16213e;border-bottom:1px solid #0f3460;padding:0 24px}
-.tab{padding:10px 20px;cursor:pointer;border-bottom:2px solid transparent;font-size:14px;color:#aaa;transition:color .2s,border-color .2s}
-.tab:hover{color:#e0e0e0}
-.tab.active{color:#4fc3f7;border-bottom-color:#4fc3f7}
+.dot.green{background:var(--success)}
+.dot.red{background:var(--danger)}
+/* Theme toggle button */
+.theme-btn{background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:16px;transition:all .2s;padding:0}
+.theme-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-bg)}
+.tabs{display:flex;background:var(--bg-surface);border-bottom:1px solid var(--border);padding:0 24px;transition:background .3s}
+.tab{padding:10px 20px;cursor:pointer;border-bottom:2px solid transparent;font-size:14px;color:var(--text-secondary);transition:color .2s,border-color .2s}
+.tab:hover{color:var(--text-primary)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 .content{padding:24px;max-width:1200px;margin:0 auto}
 .panel{display:none}
 .panel.active{display:block}
-.card{background:#16213e;border:1px solid #0f3460;border-radius:8px;padding:16px;margin-bottom:16px}
-.card h3{font-size:15px;margin-bottom:12px;color:#4fc3f7}
+.card{background:var(--bg-surface);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;box-shadow:var(--shadow);transition:background .3s,border-color .3s}
+.card h3{font-size:15px;margin-bottom:12px;color:var(--accent)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #0f3460}
-th{color:#aaa;font-weight:500}
-.empty{color:#666;font-style:italic;padding:20px;text-align:center}
-input,select,textarea{background:#1a1a2e;border:1px solid #0f3460;color:#e0e0e0;padding:8px 12px;border-radius:4px;font-size:13px;font-family:inherit}
-input:focus,select:focus,textarea:focus{outline:none;border-color:#4fc3f7}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid var(--border)}
+th{color:var(--text-secondary);font-weight:500}
+.empty{color:var(--text-muted);font-style:italic;padding:20px;text-align:center}
+input,select,textarea{background:var(--bg-input);border:1px solid var(--border);color:var(--text-primary);padding:8px 12px;border-radius:6px;font-size:13px;font-family:inherit;transition:border-color .2s,background .3s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
 textarea{width:100%;min-height:80px;resize:vertical}
-button{background:#4fc3f7;color:#1a1a2e;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500}
-button:hover{opacity:.9}
-button.danger{background:#f44336;color:#fff}
-button.secondary{background:#0f3460;color:#e0e0e0}
+button{background:var(--accent);color:var(--accent-text);border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:500;transition:opacity .2s}
+button:hover{opacity:.85}
+button.danger{background:var(--danger);color:#fff}
+button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .form-row{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
-.form-row label{font-size:13px;color:#aaa;min-width:80px}
+.form-row label{font-size:13px;color:var(--text-secondary);min-width:80px}
 .intent-btns{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
-.intent-btn{background:#0f3460;color:#e0e0e0;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid #0f3460;font-size:13px}
-.intent-btn.active{background:#4fc3f7;color:#1a1a2e;border-color:#4fc3f7}
+.intent-btn{background:var(--bg-elevated);color:var(--text-primary);padding:6px 14px;border-radius:6px;cursor:pointer;border:1px solid var(--border);font-size:13px;transition:all .2s}
+.intent-btn.active{background:var(--accent);color:var(--accent-text);border-color:var(--accent)}
 .field-group{margin-bottom:12px}
-.field-group label{display:block;font-size:12px;color:#aaa;margin-bottom:4px}
-.note{font-size:12px;color:#666;margin-top:4px}
-.keyword-box{background:#1a1a2e;border:1px solid #0f3460;border-radius:4px;padding:12px;font-size:12px;line-height:1.8;color:#aaa}
-.keyword-box strong{color:#e0e0e0}
-.keyword-box code{background:#0f3460;padding:2px 6px;border-radius:3px;color:#4fc3f7;font-size:11px}
-@keyframes highlight{from{background:rgba(79,195,247,.15)}to{background:transparent}}
+.field-group label{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px}
+.note{font-size:12px;color:var(--text-muted);margin-top:4px}
+.keyword-box{background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;line-height:1.8;color:var(--text-secondary)}
+.keyword-box strong{color:var(--text-primary)}
+.keyword-box code{background:var(--bg-elevated);padding:2px 6px;border-radius:3px;color:var(--accent);font-size:11px}
+@keyframes highlight{from{background:var(--accent-bg)}to{background:transparent}}
 .highlight-row{animation:highlight 2s ease-out}
+/* Toggle cards */
+.toggle-card{background:var(--bg-input);border:1px solid var(--border);border-radius:12px;padding:16px 20px;margin-bottom:12px;display:flex;align-items:center;gap:16px;transition:all .2s ease;cursor:pointer}
+.toggle-card:hover{border-color:var(--border-hover);background:var(--card-hover-bg)}
+.toggle-card.active{border-color:var(--accent);background:var(--accent-bg)}
+.toggle-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;transition:all .2s;background:var(--bg-elevated)}
+.toggle-card.active .toggle-icon{background:var(--accent-bg)}
+.toggle-info{flex:1;min-width:0}
+.toggle-info .toggle-title{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:2px}
+.toggle-info .toggle-desc{font-size:12px;color:var(--text-secondary);line-height:1.4}
+.toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--toggle-bg);border-radius:24px;transition:.3s}
+.toggle-slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:var(--toggle-knob);border-radius:50%;transition:.3s}
+.toggle-switch input:checked+.toggle-slider{background:var(--accent)}
+.toggle-switch input:checked+.toggle-slider:before{transform:translateX(20px);background:#fff}
+.toggle-card .badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:500;margin-left:8px}
+.badge-safe{background:rgba(76,175,80,.15);color:var(--success)}
+.badge-warn{background:rgba(255,152,0,.15);color:var(--warn)}
+/* Theme selector cards */
+.theme-options{display:flex;gap:12px;margin-top:8px;flex-wrap:wrap}
+.theme-option{border:2px solid var(--border);border-radius:12px;padding:12px 16px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:12px;min-width:160px}
+.theme-option:hover{border-color:var(--border-hover)}
+.theme-option.selected{border-color:var(--accent);background:var(--accent-bg)}
+.theme-preview{width:36px;height:36px;border-radius:8px;border:1px solid var(--border);overflow:hidden;flex-shrink:0}
+.theme-preview-dark{background:linear-gradient(135deg,#1a1a2e 50%,#16213e 50%)}
+.theme-preview-light{background:linear-gradient(135deg,#f8fafc 50%,#ffffff 50%)}
+.theme-option-label{font-size:13px;font-weight:500;color:var(--text-primary)}
+.theme-option-desc{font-size:11px;color:var(--text-secondary);margin-top:2px}
+.server-row-bound{background:var(--accent-bg)}
+/* Session detail */
+.session-row{cursor:pointer;transition:background .2s}
+.session-row:hover{background:var(--accent-bg)}
+.session-detail{background:var(--bg-input);border:1px solid var(--border);border-radius:12px;padding:20px;margin-top:16px;display:none}
+.session-detail.active{display:block}
+.session-detail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.session-detail-header h4{font-size:14px;color:var(--accent);font-weight:600}
+.session-detail-close{background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:14px;padding:0}
+.session-detail-close:hover{border-color:var(--accent);color:var(--accent)}
+.msg-list{max-height:500px;overflow-y:auto;display:flex;flex-direction:column;gap:12px}
+.msg-bubble{padding:12px 16px;border-radius:10px;font-size:13px;line-height:1.6;white-space:pre-wrap;word-break:break-word;max-width:85%}
+.msg-user{background:var(--accent-bg);border:1px solid var(--accent);align-self:flex-end;color:var(--text-primary)}
+.msg-assistant{background:var(--bg-surface);border:1px solid var(--border);align-self:flex-start;color:var(--text-primary)}
+.msg-role{font-size:11px;font-weight:600;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.msg-role-user{color:var(--accent)}
+.msg-role-assistant{color:var(--success)}
+.msg-loading{text-align:center;color:var(--text-muted);padding:20px;font-style:italic}
 </style>
 </head>
 <body>
@@ -56,11 +127,13 @@ button.secondary{background:#0f3460;color:#e0e0e0}
     <span><span class="dot red" id="statusDot"></span><span id="statusText">Connecting...</span></span>
     <span>Server: <span id="boundServer">-</span></span>
     <span>Port: <span id="dashPort">-</span></span>
+    <button class="theme-btn" id="themeToggleBtn" onclick="cycleTheme()" title="Switch theme">&#x1F319;</button>
   </div>
 </div>
 
 <div class="tabs">
   <div class="tab active" data-tab="sessions">Sessions</div>
+  <div class="tab" data-tab="distill">Distill</div>
   <div class="tab" data-tab="servers">Servers</div>
   <div class="tab" data-tab="prompts">Prompts</div>
   <div class="tab" data-tab="settings">Settings</div>
@@ -73,6 +146,69 @@ button.secondary{background:#0f3460;color:#e0e0e0}
       <h3>Real-time Sessions</h3>
       <div id="sessionsContent">
         <p class="empty">No sessions yet. Waiting for triggers...</p>
+      </div>
+    </div>
+    <div class="session-detail" id="sessionDetail">
+      <div class="session-detail-header">
+        <h4 id="sessionDetailTitle">Session Messages</h4>
+        <button class="session-detail-close" onclick="closeSessionDetail()">&times;</button>
+      </div>
+      <div id="sessionMessages" class="msg-list">
+      </div>
+    </div>
+  </div>
+
+  <!-- Distill Panel -->
+  <div class="panel" id="panel-distill">
+    <div class="card">
+      <h3>&#x1F9EA; Distill a Colleague</h3>
+      <p class="note" style="margin-bottom:16px">Collect chat messages and distill their speaking style into a reusable persona.</p>
+      <div class="field-group">
+        <label>Colleague Name</label>
+        <div class="form-row">
+          <input type="text" id="distillName" placeholder="Enter name to search..." style="flex:1">
+          <button onclick="distillSearchContact()">Search</button>
+        </div>
+        <div id="distillSearchResults" style="margin-top:8px"></div>
+      </div>
+      <div class="field-group">
+        <label>Relationship</label>
+        <div id="distillRelations" class="intent-btns" style="margin-top:4px"></div>
+      </div>
+      <div class="field-group">
+        <label>Data Source</label>
+        <div class="intent-btns" style="margin-top:4px">
+          <div class="intent-btn active" data-source="p2p" onclick="selectDistillSource(this)">Private Chat (default)</div>
+          <div class="intent-btn" data-source="group" onclick="selectDistillSource(this)">Specify Group Chat</div>
+        </div>
+        <div id="distillGroupInput" style="display:none;margin-top:8px">
+          <input type="text" id="distillChatId" placeholder="Group chat_id (oc_xxx)" style="width:100%">
+        </div>
+      </div>
+      <div class="field-group">
+        <label>Message Count: <span id="distillLimitLabel">50</span></label>
+        <input type="range" id="distillLimit" min="10" max="500" step="10" value="50" style="width:100%" oninput="document.getElementById('distillLimitLabel').textContent=this.value">
+      </div>
+      <div style="margin-top:16px">
+        <button onclick="startDistill()" id="distillBtn">&#x1F52C; Start Distilling</button>
+        <span class="note" id="distillStatus" style="margin-left:12px"></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>&#x1F3AD; Distilled Styles</h3>
+      <div id="distilledList">
+        <p class="empty">No distilled styles yet. Create one above.</p>
+      </div>
+    </div>
+
+    <div class="card" id="distillChatCard" style="display:none">
+      <h3>&#x1F4AC; Test Conversation</h3>
+      <p class="note" style="margin-bottom:8px">Chat with the distilled persona: <strong id="distillChatName"></strong></p>
+      <div id="distillChatHistory" style="max-height:300px;overflow-y:auto;background:var(--bg-input);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.8"></div>
+      <div class="form-row">
+        <input type="text" id="distillChatInput" placeholder="Type a message..." style="flex:1" onkeydown="if(event.key==='Enter')sendDistillChat()">
+        <button onclick="sendDistillChat()">Send</button>
       </div>
     </div>
   </div>
@@ -99,6 +235,80 @@ button.secondary{background:#0f3460;color:#e0e0e0}
 
   <!-- Prompts Panel -->
   <div class="panel" id="panel-prompts">
+    <div class="card" style="border-color:var(--danger);border-width:2px">
+      <h3 style="color:var(--danger)">&#x26A0;&#xFE0F; PUA Mode <span class="badge badge-warn" style="font-size:11px">Use with Caution</span></h3>
+      <p class="note" style="margin-bottom:12px;color:var(--warn)">Enables aggressive persistence mode — AI will not give up easily, will exhaust all solutions, and will self-verify before claiming completion. Requires the PUA skill installed on the OpenCode instance.</p>
+
+      <div class="toggle-card" id="cardPuaEnabled" onclick="togglePua('puaEnabled')">
+        <div class="toggle-icon" style="background:rgba(244,67,54,.15);color:var(--danger)">&#x1F525;</div>
+        <div class="toggle-info">
+          <div class="toggle-title">Enable PUA Mode <span class="badge badge-warn">Caution</span></div>
+          <div class="toggle-desc">Master switch. When ON, selected intents below will receive PUA skill injection.</div>
+        </div>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="puaEnabled" onchange="onPuaToggleChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div id="puaIntentToggles" style="margin-top:12px;padding-left:16px;opacity:0.5;pointer-events:none">
+        <p class="note" style="margin-bottom:8px">Select which intents activate PUA behavior:</p>
+
+        <div class="toggle-card" id="cardPuaSummary" onclick="togglePua('puaSummary')" style="padding:12px 16px">
+          <div class="toggle-icon" style="width:32px;height:32px;font-size:14px">&#x1F4DD;</div>
+          <div class="toggle-info">
+            <div class="toggle-title" style="font-size:13px">summary</div>
+            <div class="toggle-desc">Force thorough summarization, no lazy shortcuts</div>
+          </div>
+          <label class="toggle-switch" onclick="event.stopPropagation()">
+            <input type="checkbox" id="puaSummary" onchange="onPuaToggleChange()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-card" id="cardPuaIncident" onclick="togglePua('puaIncident')" style="padding:12px 16px">
+          <div class="toggle-icon" style="width:32px;height:32px;font-size:14px">&#x1F6A8;</div>
+          <div class="toggle-info">
+            <div class="toggle-title" style="font-size:13px">incident_analysis</div>
+            <div class="toggle-desc">Aggressive root-cause analysis, never give up debugging</div>
+          </div>
+          <label class="toggle-switch" onclick="event.stopPropagation()">
+            <input type="checkbox" id="puaIncident" onchange="onPuaToggleChange()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-card" id="cardPuaPr" onclick="togglePua('puaPr')" style="padding:12px 16px">
+          <div class="toggle-icon" style="width:32px;height:32px;font-size:14px">&#x1F50D;</div>
+          <div class="toggle-info">
+            <div class="toggle-title" style="font-size:13px">pr_review</div>
+            <div class="toggle-desc">Pixel-perfect code review, no surface-level pass</div>
+          </div>
+          <label class="toggle-switch" onclick="event.stopPropagation()">
+            <input type="checkbox" id="puaPr" onchange="onPuaToggleChange()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-card" id="cardPuaOther" onclick="togglePua('puaOther')" style="padding:12px 16px">
+          <div class="toggle-icon" style="width:32px;height:32px;font-size:14px">&#x1F4AC;</div>
+          <div class="toggle-info">
+            <div class="toggle-title" style="font-size:13px">other</div>
+            <div class="toggle-desc">General requests get full persistence treatment</div>
+          </div>
+          <label class="toggle-switch" onclick="event.stopPropagation()">
+            <input type="checkbox" id="puaOther" onchange="onPuaToggleChange()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
+        <button onclick="savePuaMode()" style="background:var(--danger)">Save PUA Settings</button>
+        <span class="note" id="puaSaveStatus"></span>
+      </div>
+    </div>
+
     <div class="card">
       <h3>Intent Routing Keywords</h3>
       <div class="keyword-box">
@@ -135,6 +345,51 @@ button.secondary{background:#0f3460;color:#e0e0e0}
   <!-- Settings Panel -->
   <div class="panel" id="panel-settings">
     <div class="card">
+      <h3>Trigger Modes</h3>
+      <p class="note" style="margin-bottom:16px">Choose how the bot gets activated. Multiple modes can be active simultaneously.</p>
+
+      <div class="toggle-card" id="cardMentionBot" onclick="toggleMode('modeMentionBot')">
+        <div class="toggle-icon">@</div>
+        <div class="toggle-info">
+          <div class="toggle-title">@Bot Mention <span class="badge badge-safe">Recommended</span></div>
+          <div class="toggle-desc">Bot responds when someone @mentions it directly in a group chat.</div>
+        </div>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="modeMentionBot" onchange="onToggleChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-card" id="cardMentionOwner" onclick="toggleMode('modeMentionOwner')">
+        <div class="toggle-icon">&#x1F464;</div>
+        <div class="toggle-info">
+          <div class="toggle-title">@Owner Mention</div>
+          <div class="toggle-desc">Bot responds when someone @mentions you (the owner) in a group where the bot is present.</div>
+        </div>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="modeMentionOwner" onchange="onToggleChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="toggle-card" id="cardAllMessages" onclick="toggleMode('modeAllMessages')">
+        <div class="toggle-icon">&#x1F4E1;</div>
+        <div class="toggle-info">
+          <div class="toggle-title">All Messages <span class="badge badge-warn">Caution</span></div>
+          <div class="toggle-desc">Bot responds to every message in group chats. High volume — use carefully.</div>
+        </div>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="modeAllMessages" onchange="onToggleChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
+        <button onclick="saveTriggerModes()">Save Trigger Modes</button>
+        <span class="note" id="triggerSaveStatus"></span>
+      </div>
+    </div>
+    <div class="card">
       <h3>Language</h3>
       <div class="form-row">
         <label>Response Language:</label>
@@ -155,6 +410,26 @@ button.secondary{background:#0f3460;color:#e0e0e0}
         <button onclick="savePort()">Save</button>
       </div>
       <p class="note">Requires restart to take effect.</p>
+    </div>
+    <div class="card">
+      <h3>Theme</h3>
+      <p class="note" style="margin-bottom:12px">Choose your preferred color scheme for the dashboard.</p>
+      <div class="theme-options">
+        <div class="theme-option" id="themeOptDark" onclick="setTheme('dark')">
+          <div class="theme-preview theme-preview-dark"></div>
+          <div>
+            <div class="theme-option-label">Dark Blue</div>
+            <div class="theme-option-desc">Deep navy theme, easy on eyes</div>
+          </div>
+        </div>
+        <div class="theme-option" id="themeOptLight" onclick="setTheme('light')">
+          <div class="theme-preview theme-preview-light"></div>
+          <div>
+            <div class="theme-option-label">Light White</div>
+            <div class="theme-option-desc">Clean and bright workspace</div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -236,7 +511,15 @@ async function init(){
   try{
     const cfg=await api("/api/config");
     if(cfg.dashboard&&cfg.dashboard.port)document.getElementById("settingsPort").value=cfg.dashboard.port;
+    // Sync theme from server if no local preference
+    if(!localStorage.getItem("oncall-bot-theme")&&cfg.dashboard&&cfg.dashboard.theme){
+      setTheme(cfg.dashboard.theme);
+    }
   }catch(e){console.error("config",e)}
+
+  await loadTriggerModes();
+  await loadPuaMode();
+  await loadDistilledList();
 
   connectSSE();
 }
@@ -250,25 +533,174 @@ function renderSessions(sessions){
   }
   let html='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th></tr></thead><tbody>';
   for(const s of sessions){
-    html+=`<tr><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
+    html+=`<tr class="session-row" onclick="openSessionDetail('${esc(s.sessionId)}','${esc(s.title||s.sessionId)}')"><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
   }
   html+='</tbody></table>';
   el.innerHTML=html;
+}
+
+// i18n strings
+const i18n={
+  en:{
+    // Server stop dialog
+    stopConfirmTitle:"Stop Server",
+    stopConfirmMsg:"Are you sure you want to stop this opencode server? This may cause the oncall bot to become unavailable.",
+    stopConfirmBound:"WARNING: This is the server currently bound to the bot (port {port}). Stopping it will make the bot unable to process any new requests.",
+    stopBtn:"Stop Server",
+    cancelBtn:"Cancel",
+    noServers:"No opencode servers detected.",
+    bound:"BOUND",
+    external:"External",
+    managed:"Managed",
+    // Dashboard UI labels
+    sessions:"Sessions",
+    servers:"Servers",
+    prompts:"Prompts",
+    settings:"Settings",
+    realtimeSessions:"Real-time Sessions",
+    noSessions:"No sessions yet. Waiting for triggers...",
+    startNewServer:"Start New Server",
+    managedServers:"Managed Servers",
+    triggerModes:"Trigger Modes",
+    triggerModesDesc:"Choose how the bot gets activated. Multiple modes can be active simultaneously.",
+    mentionBotTitle:"@Bot Mention",
+    mentionBotDesc:"Bot responds when someone @mentions it directly in a group chat.",
+    mentionOwnerTitle:"@Owner Mention",
+    mentionOwnerDesc:"Bot responds when someone @mentions you (the owner) in a group where the bot is present.",
+    allMsgTitle:"All Messages",
+    allMsgDesc:"Bot responds to every message in group chats. High volume — use carefully.",
+    recommended:"Recommended",
+    caution:"Caution",
+    saveTriggerModes:"Save Trigger Modes",
+    language:"Language",
+    responseLanguage:"Response Language:",
+    applyToAll:"Apply to All Intents",
+    dashboardPort:"Dashboard Port",
+    portNote:"Requires restart to take effect.",
+    theme:"Theme",
+    themeDesc:"Choose your preferred color scheme for the dashboard.",
+    darkBlue:"Dark Blue",
+    darkBlueDesc:"Deep navy theme, easy on eyes",
+    lightWhite:"Light White",
+    lightWhiteDesc:"Clean and bright workspace",
+    save:"Save",
+    port:"Port:",
+    projectDir:"Project Dir:",
+    start:"Start",
+  },
+  zh:{
+    stopConfirmTitle:"\u505c\u6b62\u670d\u52a1",
+    stopConfirmMsg:"\u786e\u5b9a\u8981\u505c\u6b62\u8fd9\u4e2a opencode \u670d\u52a1\u5417\uff1f\u8fd9\u53ef\u80fd\u4f1a\u5bfc\u81f4 oncall bot \u4e0d\u53ef\u7528\u3002",
+    stopConfirmBound:"\u26a0\ufe0f \u8b66\u544a\uff1a\u8fd9\u662f\u5f53\u524d Bot \u7ed1\u5b9a\u7684\u670d\u52a1\uff08\u7aef\u53e3 {port}\uff09\u3002\u505c\u6b62\u540e Bot \u5c06\u65e0\u6cd5\u5904\u7406\u4efb\u4f55\u65b0\u8bf7\u6c42\u3002",
+    stopBtn:"\u505c\u6b62\u670d\u52a1",
+    cancelBtn:"\u53d6\u6d88",
+    noServers:"\u672a\u68c0\u6d4b\u5230 opencode \u670d\u52a1\u3002",
+    bound:"\u5df2\u7ed1\u5b9a",
+    external:"\u5916\u90e8",
+    managed:"\u6258\u7ba1",
+    // Dashboard UI labels
+    sessions:"\u4f1a\u8bdd",
+    servers:"\u670d\u52a1",
+    prompts:"\u63d0\u793a\u8bcd",
+    settings:"\u8bbe\u7f6e",
+    realtimeSessions:"\u5b9e\u65f6\u4f1a\u8bdd",
+    noSessions:"\u6682\u65e0\u4f1a\u8bdd\uff0c\u7b49\u5f85\u89e6\u53d1\u2026",
+    startNewServer:"\u542f\u52a8\u65b0\u670d\u52a1",
+    managedServers:"\u670d\u52a1\u5217\u8868",
+    triggerModes:"\u89e6\u53d1\u6a21\u5f0f",
+    triggerModesDesc:"\u9009\u62e9\u673a\u5668\u4eba\u7684\u6fc0\u6d3b\u65b9\u5f0f\uff0c\u53ef\u540c\u65f6\u5f00\u542f\u591a\u4e2a\u3002",
+    mentionBotTitle:"@\u673a\u5668\u4eba",
+    mentionBotDesc:"\u6709\u4eba\u5728\u7fa4\u91cc @\u673a\u5668\u4eba \u65f6\u89e6\u53d1\u3002",
+    mentionOwnerTitle:"@\u6211",
+    mentionOwnerDesc:"\u6709\u4eba\u5728\u673a\u5668\u4eba\u6240\u5728\u7fa4\u91cc @\u4f60 \u65f6\u89e6\u53d1\u3002",
+    allMsgTitle:"\u6240\u6709\u6d88\u606f",
+    allMsgDesc:"\u7fa4\u91cc\u6240\u6709\u6d88\u606f\u90fd\u89e6\u53d1\uff0c\u8c28\u614e\u4f7f\u7528\u3002",
+    recommended:"\u63a8\u8350",
+    caution:"\u8c28\u614e",
+    saveTriggerModes:"\u4fdd\u5b58\u89e6\u53d1\u6a21\u5f0f",
+    language:"\u8bed\u8a00",
+    responseLanguage:"\u54cd\u5e94\u8bed\u8a00\uff1a",
+    applyToAll:"\u5e94\u7528\u5230\u6240\u6709\u610f\u56fe",
+    dashboardPort:"\u4eea\u8868\u677f\u7aef\u53e3",
+    portNote:"\u4fee\u6539\u540e\u9700\u91cd\u542f\u751f\u6548\u3002",
+    theme:"\u4e3b\u9898",
+    themeDesc:"\u9009\u62e9\u4eea\u8868\u677f\u7684\u914d\u8272\u65b9\u6848\u3002",
+    darkBlue:"\u6df1\u8272\u84dd",
+    darkBlueDesc:"\u6df1\u8272\u6d77\u519b\u84dd\u4e3b\u9898\uff0c\u62a4\u773c",
+    lightWhite:"\u6d45\u8272\u767d",
+    lightWhiteDesc:"\u660e\u4eae\u6e05\u7237\u7684\u5de5\u4f5c\u533a",
+    save:"\u4fdd\u5b58",
+    port:"\u7aef\u53e3\uff1a",
+    projectDir:"\u9879\u76ee\u76ee\u5f55\uff1a",
+    start:"\u542f\u52a8",
+  },
+};
+
+function getLang(){
+  const val=document.getElementById("langSelect")?.value||"";
+  return val.includes("Chinese")?"zh":"en";
+}
+
+function t(key,vars){
+  const lang=getLang();
+  let s=(i18n[lang]||i18n.en)[key]||i18n.en[key]||key;
+  if(vars)for(const[k,v]of Object.entries(vars))s=s.replace(`{${k}}`,v);
+  return s;
+}
+
+// Refresh all UI labels based on current language
+function refreshUILang(){
+  // Tabs
+  document.querySelectorAll(".tab").forEach(tab=>{
+    const key=tab.dataset.tab;
+    const map={sessions:"sessions",servers:"servers",prompts:"prompts",settings:"settings"};
+    if(map[key])tab.textContent=t(map[key]);
+  });
+  // Trigger modes card
+  const tmTitle=document.querySelector("#panel-settings .card:first-child h3");
+  if(tmTitle)tmTitle.textContent=t("triggerModes");
+  const tmDesc=document.querySelector("#panel-settings .card:first-child .note");
+  if(tmDesc)tmDesc.textContent=t("triggerModesDesc");
+  // Trigger mode cards
+  const botTitle=document.querySelector("#cardMentionBot .toggle-title");
+  if(botTitle)botTitle.innerHTML=`${t("mentionBotTitle")} <span class="badge badge-safe">${t("recommended")}</span>`;
+  const botDesc=document.querySelector("#cardMentionBot .toggle-desc");
+  if(botDesc)botDesc.textContent=t("mentionBotDesc");
+  const ownerTitle=document.querySelector("#cardMentionOwner .toggle-title");
+  if(ownerTitle)ownerTitle.textContent=t("mentionOwnerTitle");
+  const ownerDesc=document.querySelector("#cardMentionOwner .toggle-desc");
+  if(ownerDesc)ownerDesc.textContent=t("mentionOwnerDesc");
+  const allTitle=document.querySelector("#cardAllMessages .toggle-title");
+  if(allTitle)allTitle.innerHTML=`${t("allMsgTitle")} <span class="badge badge-warn">${t("caution")}</span>`;
+  const allDesc=document.querySelector("#cardAllMessages .toggle-desc");
+  if(allDesc)allDesc.textContent=t("allMsgDesc");
+  // Save trigger modes button
+  const saveTmBtn=document.querySelector("#panel-settings .card:first-child button");
+  if(saveTmBtn)saveTmBtn.textContent=t("saveTriggerModes");
+  // Re-render servers table (uses t() internally)
+  api("/api/servers").then(renderServers).catch(()=>{});
 }
 
 // Render servers table
 function renderServers(servers){
   const el=document.getElementById("serversContent");
   if(!servers.length){
-    el.innerHTML='<p class="empty">No managed servers.</p>';
+    el.innerHTML=`<p class="empty">${t("noServers")}</p>`;
     return;
   }
-  let html='<table><thead><tr><th>ID</th><th>Port</th><th>PID</th><th>Status</th><th>Started</th><th>Actions</th></tr></thead><tbody>';
+  let html='<table><thead><tr><th>Port</th><th>PID</th><th>Status</th><th>Source</th><th>Actions</th></tr></thead><tbody>';
   for(const s of servers){
-    html+=`<tr><td>${esc(s.id)}</td><td>${esc(s.port)}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${esc(s.startedAt||"-")}</td>`;
-    html+=`<td><button class="secondary" onclick="bindServer('${esc(s.id)}')">Bind</button> `;
-    html+=`<button class="secondary" onclick="restartServer('${esc(s.id)}')">Restart</button> `;
-    html+=`<button class="danger" onclick="stopServer('${esc(s.id)}')">Stop</button></td></tr>`;
+    const boundBadge=s.bound?`<span class="badge badge-safe" style="margin-left:6px">${t("bound")}</span>`:"";
+    const sourceBadge=s.source==="external"
+      ?`<span style="color:var(--text-secondary)">${t("external")}</span>`
+      :`<span style="color:var(--accent)">${t("managed")}</span>`;
+    const rowClass=s.bound?"server-row-bound":"";
+    html+=`<tr class="${rowClass}"><td>${esc(s.port)}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
+    html+=`<td>`;
+    if(s.status==="running"){
+      html+=`<button class="danger" onclick="confirmStopServer('${esc(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
+    }
+    html+=`</td></tr>`;
   }
   html+='</tbody></table>';
   el.innerHTML=html;
@@ -286,6 +718,17 @@ async function startServer(){
     document.getElementById("newPort").value="";
     document.getElementById("newDir").value="";
   }catch(e){alert("Failed: "+e.message)}
+}
+
+function confirmStopServer(id,port,isBound){
+  let msg=t("stopConfirmMsg")+"\n\n";
+  if(isBound){
+    msg+=t("stopConfirmBound",{port})+"\n\n";
+  }
+  msg+=`Port: ${port}`;
+  if(confirm(msg)){
+    stopServer(id);
+  }
 }
 
 async function stopServer(id){
@@ -322,8 +765,23 @@ async function savePrompts(){
 }
 
 // Language save
+const noticeI18n={
+  en:{
+    processing_notice:"Processing your request now. If OpenCode requires approval, the final reply may take a bit longer.",
+    thread_only_notice:"This message was sent in a thread. I will only use messages from this thread as context.",
+    trigger_only_fallback_notice:"I could not load thread history, so I will use only the trigger message itself.",
+  },
+  zh:{
+    processing_notice:"\u6b63\u5728\u5904\u7406\u4f60\u7684\u8bf7\u6c42\u3002\u5982\u679c OpenCode \u9700\u8981\u5ba1\u6279\uff0c\u6700\u7ec8\u56de\u590d\u53ef\u80fd\u9700\u8981\u66f4\u957f\u65f6\u95f4\u3002",
+    thread_only_notice:"\u8fd9\u6761\u6d88\u606f\u5728\u8bdd\u9898\u4e2d\u53d1\u9001\u3002\u6211\u5c06\u53ea\u4f7f\u7528\u8be5\u8bdd\u9898\u4e2d\u7684\u6d88\u606f\u4f5c\u4e3a\u4e0a\u4e0b\u6587\u3002",
+    trigger_only_fallback_notice:"\u65e0\u6cd5\u52a0\u8f7d\u8bdd\u9898\u5386\u53f2\uff0c\u5c06\u4ec5\u4f7f\u7528\u89e6\u53d1\u6d88\u606f\u672c\u8eab\u3002",
+  },
+};
+
 async function saveLang(){
   const val=document.getElementById("langSelect").value;
+  const langCode=val.includes("Chinese")?"zh":"en";
+  // Update response_format for all intents
   for(const k of Object.keys(prompts)){
     if(!prompts[k])prompts[k]={};
     prompts[k].response_format=val;
@@ -331,7 +789,19 @@ async function saveLang(){
   loadPromptFields();
   try{
     await api("/api/prompts",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(prompts)});
-    alert("Language updated for all intents");
+    // Also update processing notices and language code in config
+    const notices=noticeI18n[langCode]||noticeI18n.en;
+    await api("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+      reply:{
+        processing_notice:notices.processing_notice,
+        thread_only_notice:notices.thread_only_notice,
+        trigger_only_fallback_notice:notices.trigger_only_fallback_notice,
+      },
+      dashboard:{language:langCode},
+    })});
+    // Refresh dashboard UI
+    refreshUILang();
+    alert(langCode==="zh"?"\u8bed\u8a00\u5df2\u66f4\u65b0":"\u200bLanguage updated");
   }catch(e){alert("Failed: "+e.message)}
 }
 
@@ -342,6 +812,85 @@ async function savePort(){
   try{
     await api("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({dashboard:{port}})});
     alert("Port saved. Restart required.");
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+// Theme
+function setTheme(theme){
+  document.documentElement.setAttribute("data-theme",theme);
+  localStorage.setItem("oncall-bot-theme",theme);
+  updateThemeUI(theme);
+  // Persist to server config
+  api("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({dashboard:{theme}})}).catch(()=>{});
+}
+
+function cycleTheme(){
+  const current=document.documentElement.getAttribute("data-theme")||"dark";
+  setTheme(current==="dark"?"light":"dark");
+}
+
+function updateThemeUI(theme){
+  document.getElementById("themeToggleBtn").textContent=theme==="dark"?"\u{1F319}":"\u{2600}\u{FE0F}";
+  document.getElementById("themeOptDark").classList.toggle("selected",theme==="dark");
+  document.getElementById("themeOptLight").classList.toggle("selected",theme==="light");
+}
+
+function loadTheme(){
+  // Priority: localStorage > server config > default dark
+  const stored=localStorage.getItem("oncall-bot-theme");
+  const theme=stored||"dark";
+  document.documentElement.setAttribute("data-theme",theme);
+  updateThemeUI(theme);
+}
+loadTheme();
+
+// Trigger Modes
+function toggleMode(inputId){
+  const el=document.getElementById(inputId);
+  el.checked=!el.checked;
+  onToggleChange();
+}
+
+function onToggleChange(){
+  updateToggleCards();
+}
+
+function updateToggleCards(){
+  const pairs=[
+    ["modeMentionBot","cardMentionBot"],
+    ["modeMentionOwner","cardMentionOwner"],
+    ["modeAllMessages","cardAllMessages"],
+  ];
+  for(const [inputId,cardId] of pairs){
+    const checked=document.getElementById(inputId).checked;
+    const card=document.getElementById(cardId);
+    if(checked)card.classList.add("active");
+    else card.classList.remove("active");
+  }
+}
+
+async function loadTriggerModes(){
+  try{
+    const modes=await api("/api/trigger-modes");
+    document.getElementById("modeMentionBot").checked=!!modes.mention_bot;
+    document.getElementById("modeMentionOwner").checked=!!modes.mention_owner;
+    document.getElementById("modeAllMessages").checked=!!modes.all_messages;
+    updateToggleCards();
+  }catch(e){console.error("trigger-modes",e)}
+}
+
+async function saveTriggerModes(){
+  const modes={
+    mention_bot:document.getElementById("modeMentionBot").checked,
+    mention_owner:document.getElementById("modeMentionOwner").checked,
+    all_messages:document.getElementById("modeAllMessages").checked,
+  };
+  try{
+    await api("/api/trigger-modes",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(modes)});
+    const el=document.getElementById("triggerSaveStatus");
+    el.textContent="Saved! Active immediately.";
+    el.style.color="#4caf50";
+    setTimeout(()=>{el.textContent=""},3000);
   }catch(e){alert("Failed: "+e.message)}
 }
 
@@ -373,10 +922,295 @@ function addSessionRow(s){
     tbody=el.querySelector("tbody");
   }
   const tr=document.createElement("tr");
-  tr.className="highlight-row";
+  tr.className="highlight-row session-row";
+  tr.onclick=()=>openSessionDetail(s.sessionId,s.title||s.sessionId);
   tr.innerHTML=`<td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td>`;
   tbody.insertBefore(tr,tbody.firstChild);
 }
+
+// Session detail view
+async function openSessionDetail(sessionId,title){
+  const panel=document.getElementById("sessionDetail");
+  const msgEl=document.getElementById("sessionMessages");
+  document.getElementById("sessionDetailTitle").textContent=title;
+  panel.classList.add("active");
+  msgEl.innerHTML='<div class="msg-loading">Loading messages...</div>';
+
+  try{
+    const messages=await api(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
+    if(!messages.length){
+      msgEl.innerHTML='<div class="msg-loading">No messages in this session.</div>';
+      return;
+    }
+    let html="";
+    for(const msg of messages){
+      const role=msg.info?.role||"unknown";
+      const text=msg.parts?.filter(p=>p.type==="text").map(p=>p.text).join("\n")||"";
+      if(!text.trim())continue;
+      const roleClass=role==="user"?"msg-user":"msg-assistant";
+      const roleLabelClass=role==="user"?"msg-role-user":"msg-role-assistant";
+      html+=`<div class="msg-bubble ${roleClass}"><div class="msg-role ${roleLabelClass}">${esc(role)}</div>${esc(text)}</div>`;
+    }
+    msgEl.innerHTML=html||'<div class="msg-loading">No text messages found.</div>';
+    // Scroll to bottom
+    msgEl.scrollTop=msgEl.scrollHeight;
+  }catch(e){
+    msgEl.innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+function closeSessionDetail(){
+  document.getElementById("sessionDetail").classList.remove("active");
+}
+
+// PUA Mode
+function togglePua(inputId){
+  const el=document.getElementById(inputId);
+  el.checked=!el.checked;
+  onPuaToggleChange();
+}
+
+function onPuaToggleChange(){
+  const enabled=document.getElementById("puaEnabled").checked;
+  const panel=document.getElementById("puaIntentToggles");
+  panel.style.opacity=enabled?"1":"0.5";
+  panel.style.pointerEvents=enabled?"auto":"none";
+
+  // Update card active states
+  const cardEnabled=document.getElementById("cardPuaEnabled");
+  if(enabled)cardEnabled.classList.add("active");
+  else cardEnabled.classList.remove("active");
+
+  const intentPairs=[
+    ["puaSummary","cardPuaSummary"],
+    ["puaIncident","cardPuaIncident"],
+    ["puaPr","cardPuaPr"],
+    ["puaOther","cardPuaOther"],
+  ];
+  for(const [inputId,cardId] of intentPairs){
+    const checked=document.getElementById(inputId).checked;
+    const card=document.getElementById(cardId);
+    if(checked&&enabled)card.classList.add("active");
+    else card.classList.remove("active");
+  }
+}
+
+async function loadPuaMode(){
+  try{
+    const pua=await api("/api/pua-mode");
+    document.getElementById("puaEnabled").checked=!!pua.enabled;
+    document.getElementById("puaSummary").checked=!!pua.intents?.summary;
+    document.getElementById("puaIncident").checked=!!pua.intents?.incident_analysis;
+    document.getElementById("puaPr").checked=!!pua.intents?.pr_review;
+    document.getElementById("puaOther").checked=!!pua.intents?.other;
+    onPuaToggleChange();
+  }catch(e){console.error("pua-mode",e)}
+}
+
+async function savePuaMode(){
+  const body={
+    enabled:document.getElementById("puaEnabled").checked,
+    intents:{
+      summary:document.getElementById("puaSummary").checked,
+      incident_analysis:document.getElementById("puaIncident").checked,
+      pr_review:document.getElementById("puaPr").checked,
+      other:document.getElementById("puaOther").checked,
+    },
+  };
+  try{
+    await api("/api/pua-mode",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    const el=document.getElementById("puaSaveStatus");
+    el.textContent="Saved! Active on next trigger.";
+    el.style.color="var(--success)";
+    setTimeout(()=>{el.textContent=""},3000);
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+// --- Distill Feature ---
+let distillSelectedOpenId = null;
+let distillSelectedRelation = "peer";
+let distillSelectedSource = "p2p";
+let distillChatSlug = null;
+
+const DISTILL_RELATIONS = [
+  { id: "peer", label: "\u5E73\u7EA7", emoji: "" },
+  { id: "junior", label: "\u4E0B\u7EA7", emoji: "" },
+  { id: "senior", label: "\u4E0A\u7EA7", emoji: "" },
+  { id: "mentor", label: "\u5BFC\u5E08", emoji: "" },
+  { id: "crush", label: "\u6697\u604B\u5BF9\u8C61", emoji: "\u{1F60F}" },
+  { id: "ex", label: "\u524D\u4EFB", emoji: "\u{1F921}" },
+];
+
+function renderDistillRelations() {
+  const el = document.getElementById("distillRelations");
+  el.innerHTML = DISTILL_RELATIONS.map((r, i) => 
+    `<div class="intent-btn${i === 0 ? " active" : ""}" data-relation="${r.id}" onclick="selectDistillRelation(this)">${r.label}${r.emoji ? " " + r.emoji : ""}</div>`
+  ).join("");
+}
+
+function selectDistillRelation(btn) {
+  document.querySelectorAll("#distillRelations .intent-btn").forEach(x => x.classList.remove("active"));
+  btn.classList.add("active");
+  distillSelectedRelation = btn.dataset.relation;
+}
+
+function selectDistillSource(btn) {
+  btn.parentElement.querySelectorAll(".intent-btn").forEach(x => x.classList.remove("active"));
+  btn.classList.add("active");
+  distillSelectedSource = btn.dataset.source;
+  document.getElementById("distillGroupInput").style.display = btn.dataset.source === "group" ? "block" : "none";
+}
+
+async function distillSearchContact() {
+  const name = document.getElementById("distillName").value.trim();
+  if (!name) return;
+  const el = document.getElementById("distillSearchResults");
+  el.innerHTML = '<span class="note">Searching...</span>';
+  try {
+    const results = await api("/api/distill/search", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!results.length) {
+      el.innerHTML = '<span class="note" style="color:var(--warn)">No results found.</span>';
+      return;
+    }
+    el.innerHTML = results.map(u =>
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${esc(u.open_id)}','${esc(u.name)}')">
+        <div class="toggle-info">
+          <div class="toggle-title" style="font-size:13px">${esc(u.name)}</div>
+          <div class="toggle-desc">${esc(u.department || "")}</div>
+        </div>
+      </div>`
+    ).join("");
+  } catch (e) {
+    el.innerHTML = `<span class="note" style="color:var(--danger)">${esc(e.message)}</span>`;
+  }
+}
+
+function selectDistillContact(openId, name) {
+  distillSelectedOpenId = openId;
+  document.getElementById("distillName").value = name;
+  document.getElementById("distillSearchResults").innerHTML = `<span class="note" style="color:var(--success)">\u2713 Selected: ${esc(name)}</span>`;
+}
+
+async function startDistill() {
+  const name = document.getElementById("distillName").value.trim();
+  if (!name) { alert("Please enter a colleague name"); return; }
+  const limit = parseInt(document.getElementById("distillLimit").value) || 50;
+  const chatId = distillSelectedSource === "group" ? document.getElementById("distillChatId").value.trim() : null;
+
+  const btn = document.getElementById("distillBtn");
+  const status = document.getElementById("distillStatus");
+  btn.disabled = true;
+  btn.textContent = "\u23F3 Distilling...";
+  status.textContent = "Fetching messages and analyzing style...";
+  status.style.color = "var(--text-secondary)";
+
+  try {
+    const result = await api("/api/distill/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        openId: distillSelectedOpenId,
+        relation: distillSelectedRelation,
+        limit,
+        source: distillSelectedSource,
+        chatId,
+      }),
+    });
+    status.textContent = "\u2705 Distilled successfully!";
+    status.style.color = "var(--success)";
+    loadDistilledList();
+  } catch (e) {
+    status.textContent = "\u274C " + e.message;
+    status.style.color = "var(--danger)";
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "\u{1F52C} Start Distilling";
+  }
+}
+
+async function loadDistilledList() {
+  try {
+    const list = await api("/api/distill/list");
+    const el = document.getElementById("distilledList");
+    if (!list.length) {
+      el.innerHTML = '<p class="empty">No distilled styles yet. Create one above.</p>';
+      return;
+    }
+    el.innerHTML = list.map(d => {
+      const tags = (d.persona?.style_tags || []).map(t => `<code>${esc(t)}</code>`).join(" ");
+      return `<div class="toggle-card" style="padding:12px 16px;margin-bottom:8px">
+        <div class="toggle-icon" style="font-size:16px">\u{1F9EC}</div>
+        <div class="toggle-info" style="flex:1">
+          <div class="toggle-title" style="font-size:14px">${esc(d.name)} <span style="font-size:12px;color:var(--text-secondary)">${esc(d.relationLabel || d.relation)}</span></div>
+          <div class="toggle-desc">${esc(d.persona?.summary || "")}</div>
+          <div style="margin-top:4px;font-size:11px">${tags}</div>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="openDistillChat('${esc(d.slug)}','${esc(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} Test</button>
+          <button class="danger" onclick="deleteDistillProfile('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
+        </div>
+      </div>`;
+    }).join("");
+  } catch (e) {
+    console.error("loadDistilledList", e);
+  }
+}
+
+function openDistillChat(slug, name) {
+  distillChatSlug = slug;
+  document.getElementById("distillChatCard").style.display = "block";
+  document.getElementById("distillChatName").textContent = name;
+  document.getElementById("distillChatHistory").innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:20px">Start chatting with ${esc(name)}...</div>`;
+  document.getElementById("distillChatInput").focus();
+}
+
+async function sendDistillChat() {
+  const input = document.getElementById("distillChatInput");
+  const msg = input.value.trim();
+  if (!msg || !distillChatSlug) return;
+  input.value = "";
+
+  const history = document.getElementById("distillChatHistory");
+  history.innerHTML += `<div style="text-align:right;margin-bottom:8px"><span style="background:var(--accent);color:var(--accent-text);padding:4px 10px;border-radius:12px;display:inline-block">${esc(msg)}</span></div>`;
+  history.innerHTML += `<div id="distillTyping" style="margin-bottom:8px;color:var(--text-muted)">typing...</div>`;
+  history.scrollTop = history.scrollHeight;
+
+  try {
+    const { reply } = await api("/api/distill/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slug: distillChatSlug, message: msg }),
+    });
+    const typing = document.getElementById("distillTyping");
+    if (typing) typing.remove();
+    history.innerHTML += `<div style="margin-bottom:8px"><span style="background:var(--bg-elevated);padding:4px 10px;border-radius:12px;display:inline-block">${esc(reply)}</span></div>`;
+    history.scrollTop = history.scrollHeight;
+  } catch (e) {
+    const typing = document.getElementById("distillTyping");
+    if (typing) typing.textContent = "Error: " + e.message;
+  }
+}
+
+async function deleteDistillProfile(slug) {
+  if (!confirm("Delete this distilled style?")) return;
+  try {
+    await api(`/api/distill/${slug}`, { method: "DELETE" });
+    loadDistilledList();
+    if (distillChatSlug === slug) {
+      document.getElementById("distillChatCard").style.display = "none";
+      distillChatSlug = null;
+    }
+  } catch (e) {
+    alert("Failed: " + e.message);
+  }
+}
+
+renderDistillRelations();
 
 init();
 </script>
