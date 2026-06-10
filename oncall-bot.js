@@ -8,11 +8,11 @@ import { ContextFetcher } from "./lib/context-fetcher.js";
 import { OpenCodeClient } from "./lib/opencode-client.js";
 import { ReplySender } from "./lib/reply-sender.js";
 import { ChatQueue } from "./lib/queue.js";
-import { detectIntent, buildIntentPrompt, buildSessionOptions } from "./lib/intent-router.js";
-import { getProcessingNotice, shouldSendProcessingNotice } from "./lib/processing-notice.js";
+import { detectIntent } from "./lib/intent-router.js";
+import { getProcessingNotice } from "./lib/processing-notice.js";
 import { acquireSingleInstanceLock } from "./lib/single-instance-lock.js";
-import { AsyncAnalysis } from "./lib/async-analysis.js";
-import { PendingJobs } from "./lib/pending-jobs.js";
+import { TriggerGuard } from "./lib/trigger-guard.js";
+import { processTrigger } from "./lib/trigger-orchestration.js";
 import { DashboardServer } from "./lib/dashboard-server.js";
 import { botEvents } from "./lib/bot-events.js";
 
@@ -31,8 +31,7 @@ const contextFetcher = new ContextFetcher(config);
 const opencode = new OpenCodeClient(config);
 const replySender = new ReplySender(config);
 const queue = new ChatQueue(config.concurrency);
-const pendingJobs = new PendingJobs();
-const asyncAnalysis = new AsyncAnalysis({ client: opencode, replySender, config });
+const triggerGuard = new TriggerGuard();
 
 // Startup checks
 async function preflight() {
@@ -79,84 +78,66 @@ async function handleTrigger(event) {
   const messageId = event.message_id;
   const senderId = event.sender_id;
 
-  log(`← trigger: ${senderId} in ${chatId} (${messageId})`);
+  log(`← trigger: ${senderId} in ${chatId} (${messageId})${event.thread_id ? ` thread=${event.thread_id}` : ""}`);
 
-  const result = queue.enqueue(chatId, async () => {
-    // Dedup: skip if a job for this trigger is already running
-    const jobKey = `${chatId}:${messageId}`;
-    if (pendingJobs.get(jobKey)) {
-      log(`  ⚠ duplicate trigger ignored (${jobKey})`);
+  const startTime = Date.now();
+  try {
+    const result = await processTrigger({
+      event,
+      config,
+      queue,
+      triggerGuard,
+      contextFetcher,
+      opencode: {
+        ...opencode,
+        async findOrCreateSession(sessionOptions) {
+          const sessionResult = await opencode.findOrCreateSession(sessionOptions);
+          log(`  session: "${sessionOptions.title}" (${sessionResult.sessionId}, ${sessionResult.sessionState})`);
+          botEvents.emit("session:created", {
+            sessionId: sessionResult.sessionId,
+            title: sessionOptions.title,
+            chatName: sessionOptions.title.split("-")[0],
+            intent: "other",
+            createdAt: new Date().toISOString(),
+          });
+          return sessionResult;
+        },
+        async sendMessage(sessionId, prompt) {
+          log("  sending to opencode...");
+          const analysis = await opencode.sendMessage(sessionId, prompt);
+          log(`  opencode replied (${Math.round((Date.now() - startTime) / 1000)}s)`);
+          return analysis;
+        },
+      },
+      replySender: {
+        ...replySender,
+        async sendReply(replyEvent, text, options) {
+          await replySender.sendReply(replyEvent, text, options);
+          if (text === getProcessingNotice(config)) {
+            log("  sent processing notice");
+          }
+        },
+      },
+      detectIntentFn(receivedEvent, contextMessages) {
+        const intent = detectIntent(receivedEvent, contextMessages);
+        log(`  intent: ${intent}`);
+        return intent;
+      },
+    });
+
+    if (result === null) {
+      log(`  ⚠ queue full for ${chatId}, dropping message ${messageId}`);
       return;
     }
 
+    log(`→ replied (${messageId})`);
+  } catch (err) {
+    log(`✗ error: ${err.message}`);
     try {
-      // 1. Fetch context
-      log(`  fetching ${config.context.message_count} messages context...`);
-      const contextMessages = await contextFetcher.fetchContext(chatId, event.create_time);
-
-      // 2. Detect intent
-      const intent = detectIntent(event, contextMessages);
-      log(`  intent: ${intent}`);
-
-      // 3. Resolve chat name
-      const chatName = await contextFetcher.getChatName(chatId);
-
-      // 4. Build intent-aware prompt
-      const prompt = buildIntentPrompt(intent, config.prompt, event, contextMessages);
-
-      // 5. Build session options and find/create session
-      const today = new Date().toISOString().slice(0, 10);
-      const sessionOptions = buildSessionOptions({
-        intent,
-        chatId,
-        chatName,
-        today,
-        triggerMessageId: messageId,
-        triggerContent: event.content,
-      });
-      const sessionId = await opencode.findOrCreateSession(sessionOptions);
-      log(`  session: "${sessionOptions.title}" (${sessionId})`);
-      botEvents.emit("session:created", {
-        sessionId,
-        title: sessionOptions.title,
-        chatName: chatName || sessionOptions.title.split("-")[0],
-        intent,
-        createdAt: new Date().toISOString(),
-      });
-
-      // 6. Send processing notice immediately
-      if (shouldSendProcessingNotice(config)) {
-        await replySender.sendReply(event, getProcessingNotice(config), { skipPrefix: true });
-        log("  sent processing notice");
-      }
-
-      // 7. Register pending job (dedup protection)
-      pendingJobs.register({ chatId, triggerMessageId: messageId, sessionId, submittedAt: Date.now(), userMessageId: null });
-
-      // 8. Launch background analysis — detached from queue
-      asyncAnalysis.run(event, sessionId, prompt)
-        .then(() => {
-          pendingJobs.complete(jobKey);
-          log(`→ async analysis complete (${messageId})`);
-        })
-        .catch((err) => {
-          pendingJobs.fail(jobKey, err);
-          log(`✗ async analysis error: ${err.message}`);
-        });
-
-      log(`  background analysis started (${messageId})`);
-    } catch (err) {
-      log(`✗ error in trigger setup: ${err.message}`);
-      try {
-        await replySender.sendReply(event, `⚠️ Failed to start analysis: ${err.message}`);
-      } catch {
-        // best-effort
-      }
+      await replySender.sendReply(event, `⚠️ Analysis failed: ${err.message}`);
+    } catch {
+      // best-effort
     }
-  });
-
-  if (result === null) {
-    log(`  ⚠ queue full for ${chatId}, dropping message ${messageId}`);
   }
 }
 
