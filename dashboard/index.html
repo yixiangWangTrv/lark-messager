@@ -179,10 +179,14 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
         <label>Data Source</label>
         <div class="intent-btns" style="margin-top:4px">
           <div class="intent-btn active" data-source="p2p" onclick="selectDistillSource(this)">Private Chat (default)</div>
-          <div class="intent-btn" data-source="group" onclick="selectDistillSource(this)">Specify Group Chat</div>
+          <div class="intent-btn" data-source="group" onclick="selectDistillSource(this)">Group Chat</div>
         </div>
         <div id="distillGroupInput" style="display:none;margin-top:8px">
-          <input type="text" id="distillChatId" placeholder="Group chat_id (oc_xxx)" style="width:100%">
+          <div class="form-row">
+            <input type="text" id="distillGroupQuery" placeholder="Enter group name to search..." style="flex:1">
+            <button onclick="distillSearchGroup()">Search</button>
+          </div>
+          <div id="distillGroupResults" style="margin-top:8px"></div>
         </div>
       </div>
       <div class="field-group">
@@ -596,6 +600,24 @@ const i18n={
     port:"Port:",
     projectDir:"Project Dir:",
     start:"Start",
+    // Distill panel
+    distill:"Distill",
+    distillTitle:"Distill a Colleague",
+    distillDesc:"Collect chat messages and distill their speaking style into a reusable persona.",
+    colleagueName:"Colleague Name",
+    searchPlaceholder:"Enter name to search...",
+    search:"Search",
+    relationship:"Relationship",
+    dataSource:"Data Source",
+    privateChat:"Private Chat (default)",
+    specifyGroup:"Specify Group Chat",
+    messageCount:"Message Count:",
+    startDistilling:"Start Distilling",
+    distilledStyles:"Distilled Styles",
+    noDistilled:"No distilled styles yet. Create one above.",
+    testConversation:"Test Conversation",
+    chatPlaceholder:"Type a message...",
+    send:"Send",
   },
   zh:{
     stopConfirmTitle:"\u505c\u6b62\u670d\u52a1",
@@ -642,6 +664,24 @@ const i18n={
     port:"\u7aef\u53e3\uff1a",
     projectDir:"\u9879\u76ee\u76ee\u5f55\uff1a",
     start:"\u542f\u52a8",
+    // Distill panel
+    distill:"\u84b8\u998f",
+    distillTitle:"\u84b8\u998f\u540c\u4e8b\u98ce\u683c",
+    distillDesc:"\u6536\u96c6\u804a\u5929\u6d88\u606f\uff0c\u63d0\u70bc\u5bf9\u65b9\u7684\u8bf4\u8bdd\u98ce\u683c\u4e3a\u53ef\u590d\u7528\u7684\u4eba\u683c\u3002",
+    colleagueName:"\u540c\u4e8b\u59d3\u540d",
+    searchPlaceholder:"\u8f93\u5165\u59d3\u540d\u641c\u7d22...",
+    search:"\u641c\u7d22",
+    relationship:"\u5173\u7cfb",
+    dataSource:"\u6570\u636e\u6765\u6e90",
+    privateChat:"\u79c1\u804a\uff08\u9ed8\u8ba4\uff09",
+    specifyGroup:"\u6307\u5b9a\u7fa4\u804a",
+    messageCount:"\u6d88\u606f\u6570\u91cf\uff1a",
+    startDistilling:"\u5f00\u59cb\u84b8\u998f",
+    distilledStyles:"\u5df2\u84b8\u998f\u98ce\u683c",
+    noDistilled:"\u8fd8\u6ca1\u6709\u84b8\u998f\u7684\u98ce\u683c\uff0c\u5728\u4e0a\u65b9\u521b\u5efa\u4e00\u4e2a\u3002",
+    testConversation:"\u6d4b\u8bd5\u5bf9\u8bdd",
+    chatPlaceholder:"\u8f93\u5165\u6d88\u606f...",
+    send:"\u53d1\u9001",
   },
 };
 
@@ -688,6 +728,40 @@ function refreshUILang(){
   if(saveTmBtn)saveTmBtn.textContent=t("saveTriggerModes");
   // Re-render servers table (uses t() internally)
   api("/api/servers").then(renderServers).catch(()=>{});
+  // Distill panel
+  const distillTab=document.querySelector('.tab[data-tab="distill"]');
+  if(distillTab)distillTab.textContent=t("distill");
+  const distillH3=document.querySelector("#panel-distill .card:first-child h3");
+  if(distillH3)distillH3.innerHTML=`&#x1F9EA; ${t("distillTitle")}`;
+  const distillDesc=document.querySelector("#panel-distill .card:first-child .note");
+  if(distillDesc)distillDesc.textContent=t("distillDesc");
+  const distillLabels=document.querySelectorAll("#panel-distill .field-group > label");
+  if(distillLabels[0])distillLabels[0].textContent=t("colleagueName");
+  if(distillLabels[1])distillLabels[1].textContent=t("relationship");
+  if(distillLabels[2])distillLabels[2].textContent=t("dataSource");
+  if(distillLabels[3])distillLabels[3].innerHTML=`${t("messageCount")} <span id="distillLimitLabel">${document.getElementById("distillLimit")?.value||50}</span>`;
+  // Data source buttons
+  const srcBtns=document.querySelectorAll("#panel-distill .field-group:nth-child(3) .intent-btn");
+  if(srcBtns[0])srcBtns[0].textContent=t("privateChat");
+  if(srcBtns[1])srcBtns[1].textContent=t("specifyGroup");
+  // Start Distilling button
+  const distillBtn=document.getElementById("distillBtn");
+  if(distillBtn&&!distillBtn.textContent.includes("\u23F3"))distillBtn.innerHTML=`&#x1F52C; ${t("startDistilling")}`;
+  // Search button and input
+  const searchBtn=document.querySelector("#panel-distill .form-row button");
+  if(searchBtn)searchBtn.textContent=t("search");
+  const searchInput=document.getElementById("distillName");
+  if(searchInput)searchInput.placeholder=t("searchPlaceholder");
+  // Distilled Styles heading
+  const stylesH3=document.querySelector("#panel-distill .card:nth-child(2) h3");
+  if(stylesH3)stylesH3.innerHTML=`&#x1F3AD; ${t("distilledStyles")}`;
+  // Test Conversation
+  const chatH3=document.querySelector("#distillChatCard h3");
+  if(chatH3)chatH3.innerHTML=`&#x1F4AC; ${t("testConversation")}`;
+  const chatInput=document.getElementById("distillChatInput");
+  if(chatInput)chatInput.placeholder=t("chatPlaceholder");
+  const sendBtn=document.querySelector("#distillChatCard .form-row button");
+  if(sendBtn)sendBtn.textContent=t("send");
 }
 
 // Render servers table
@@ -1040,6 +1114,7 @@ let distillSelectedOpenId = null;
 let distillSelectedP2pChatId = null;
 let distillSelectedRelation = "peer";
 let distillSelectedSource = "p2p";
+let distillSelectedGroupChatId = null;
 let distillChatSlug = null;
 
 const DISTILL_RELATIONS = [
@@ -1069,6 +1144,39 @@ function selectDistillSource(btn) {
   btn.classList.add("active");
   distillSelectedSource = btn.dataset.source;
   document.getElementById("distillGroupInput").style.display = btn.dataset.source === "group" ? "block" : "none";
+}
+
+async function distillSearchGroup() {
+  const query = document.getElementById("distillGroupQuery").value.trim();
+  if (!query) return;
+  const el = document.getElementById("distillGroupResults");
+  el.innerHTML = '<span class="note">Searching groups...</span>';
+  try {
+    const results = await api("/api/distill/search-group", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query }),
+    });
+    if (!results.length) {
+      el.innerHTML = '<span class="note" style="color:var(--warn)">No groups found.</span>';
+      return;
+    }
+    el.innerHTML = results.map(g =>
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillGroup('${esc(g.chat_id)}','${esc(g.name)}')">
+        <div class="toggle-info">
+          <div class="toggle-title" style="font-size:13px">${esc(g.name)}</div>
+          <div class="toggle-desc" style="font-size:11px;color:var(--text-muted)">${esc(g.description || "").slice(0, 60)}</div>
+        </div>
+      </div>`
+    ).join("");
+  } catch (e) {
+    el.innerHTML = `<span class="note" style="color:var(--danger)">${esc(e.message)}</span>`;
+  }
+}
+
+function selectDistillGroup(chatId, name) {
+  distillSelectedGroupChatId = chatId;
+  document.getElementById("distillGroupResults").innerHTML = `<span class="note" style="color:var(--success)">\u2713 Selected: ${esc(name)}</span>`;
 }
 
 async function distillSearchContact() {
@@ -1110,7 +1218,12 @@ async function startDistill() {
   const name = document.getElementById("distillName").value.trim();
   if (!name) { alert("Please enter a colleague name"); return; }
   const limit = parseInt(document.getElementById("distillLimit").value) || 50;
-  const chatId = distillSelectedSource === "group" ? document.getElementById("distillChatId").value.trim() : null;
+  const chatId = distillSelectedSource === "group" ? distillSelectedGroupChatId : null;
+
+  if (distillSelectedSource === "group" && !chatId) {
+    alert("Please search and select a group chat first");
+    return;
+  }
 
   const btn = document.getElementById("distillBtn");
   const status = document.getElementById("distillStatus");
