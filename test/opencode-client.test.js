@@ -242,4 +242,69 @@ describe("OpenCodeClient", () => {
       /timed out after 50ms/
     );
   });
+
+  it("submitMessage returns tracking object with sessionId and submittedAt", async () => {
+    let capturedBody = null;
+    global.fetch = async (url, options = {}) => {
+      capturedBody = JSON.parse(options.body || "{}");
+      return {
+        ok: true,
+        json: async () => ({
+          data: {
+            info: { id: "msg_user_001", role: "user" },
+            parts: [],
+          },
+        }),
+      };
+    };
+
+    const client = new OpenCodeClient(baseConfig);
+    const before = Date.now();
+    const tracking = await client.submitMessage("session-1", "hello");
+    const after = Date.now();
+
+    assert.equal(tracking.sessionId, "session-1");
+    assert.ok(tracking.submittedAt >= before && tracking.submittedAt <= after);
+    assert.equal(tracking.userMessageId, "msg_user_001");
+    assert.deepEqual(capturedBody.parts, [{ type: "text", text: "hello" }]);
+  });
+
+  it("submitMessage sets userMessageId to null when response has no message id", async () => {
+    global.fetch = async () => ({
+      ok: true,
+      json: async () => ({ data: { parts: [] } }),
+    });
+
+    const client = new OpenCodeClient(baseConfig);
+    const tracking = await client.submitMessage("session-1", "hello");
+
+    assert.equal(tracking.userMessageId, null);
+  });
+
+  it("listMessages returns parsed message array", async () => {
+    const messages = [
+      { info: { id: "msg_u1", role: "user" }, parts: [] },
+      { info: { id: "msg_a1", role: "assistant", time: { completed: 12345 } }, parts: [{ type: "text", text: "hi" }] },
+    ];
+    global.fetch = async () => ({
+      ok: true,
+      json: async () => messages,
+    });
+
+    const client = new OpenCodeClient(baseConfig);
+    const result = await client.listMessages("session-1");
+
+    assert.equal(result.length, 2);
+    assert.equal(result[0].info.role, "user");
+    assert.equal(result[1].info.role, "assistant");
+  });
+
+  it("listMessages returns empty array on non-ok response", async () => {
+    global.fetch = async () => ({ ok: false, status: 404 });
+
+    const client = new OpenCodeClient(baseConfig);
+    const result = await client.listMessages("session-1");
+
+    assert.deepEqual(result, []);
+  });
 });
