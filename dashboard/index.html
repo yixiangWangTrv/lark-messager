@@ -203,8 +203,8 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
       <h3>&#x1F3AD; Distilled Styles</h3>
       <div id="activeStyleBanner" style="display:none;background:var(--accent-bg);border:1px solid var(--accent);border-radius:8px;padding:10px 16px;margin-bottom:12px;display:flex;align-items:center;gap:12px">
         <span style="font-size:14px">&#x1F3A4;</span>
-        <span style="flex:1;font-size:13px"><strong>Active Style:</strong> <span id="activeStyleName">-</span></span>
-        <button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">Deactivate</button>
+        <span style="flex:1;font-size:13px"><strong id="activeStyleLabel">Active Style:</strong> <span id="activeStyleName">-</span></span>
+        <button class="secondary" id="deactivateBtn" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">Deactivate</button>
       </div>
       <div id="distilledList">
         <p class="empty">No distilled styles yet. Create one above.</p>
@@ -615,14 +615,34 @@ const i18n={
     relationship:"Relationship",
     dataSource:"Data Source",
     privateChat:"Private Chat (default)",
-    specifyGroup:"Specify Group Chat",
+    specifyGroup:"Group Chat",
+    groupSearchPlaceholder:"Enter group name to search...",
     messageCount:"Message Count:",
     startDistilling:"Start Distilling",
+    distilling:"Distilling...",
     distilledStyles:"Distilled Styles",
     noDistilled:"No distilled styles yet. Create one above.",
     testConversation:"Test Conversation",
     chatPlaceholder:"Type a message...",
+    chatWith:"Chat with",
     send:"Send",
+    apply:"Apply",
+    active:"Active",
+    deactivate:"Deactivate",
+    activeStyle:"Active Style",
+    deleteConfirm:"Delete this distilled style?",
+    selectGroup:"Please search and select a group chat first",
+    enterName:"Please enter a colleague name",
+    fetchingStyle:"Fetching messages and analyzing style...",
+    distillSuccess:"Distilled successfully!",
+    test:"Test",
+    // Relation labels
+    relPeer:"Peer",
+    relJunior:"Junior",
+    relSenior:"Senior",
+    relMentor:"Mentor",
+    relCrush:"Crush",
+    relEx:"Ex",
   },
   zh:{
     stopConfirmTitle:"\u505c\u6b62\u670d\u52a1",
@@ -679,14 +699,34 @@ const i18n={
     relationship:"\u5173\u7cfb",
     dataSource:"\u6570\u636e\u6765\u6e90",
     privateChat:"\u79c1\u804a\uff08\u9ed8\u8ba4\uff09",
-    specifyGroup:"\u6307\u5b9a\u7fa4\u804a",
+    specifyGroup:"\u7fa4\u804a",
+    groupSearchPlaceholder:"\u8f93\u5165\u7fa4\u540d\u641c\u7d22...",
     messageCount:"\u6d88\u606f\u6570\u91cf\uff1a",
     startDistilling:"\u5f00\u59cb\u84b8\u998f",
+    distilling:"\u84b8\u998f\u4e2d...",
     distilledStyles:"\u5df2\u84b8\u998f\u98ce\u683c",
     noDistilled:"\u8fd8\u6ca1\u6709\u84b8\u998f\u7684\u98ce\u683c\uff0c\u5728\u4e0a\u65b9\u521b\u5efa\u4e00\u4e2a\u3002",
     testConversation:"\u6d4b\u8bd5\u5bf9\u8bdd",
     chatPlaceholder:"\u8f93\u5165\u6d88\u606f...",
+    chatWith:"\u4e0e",
     send:"\u53d1\u9001",
+    apply:"\u5e94\u7528",
+    active:"\u5df2\u5e94\u7528",
+    deactivate:"\u53d6\u6d88\u5e94\u7528",
+    activeStyle:"\u5f53\u524d\u98ce\u683c",
+    deleteConfirm:"\u786e\u5b9a\u5220\u9664\u8fd9\u4e2a\u84b8\u998f\u98ce\u683c\uff1f",
+    selectGroup:"\u8bf7\u5148\u641c\u7d22\u5e76\u9009\u62e9\u4e00\u4e2a\u7fa4\u804a",
+    enterName:"\u8bf7\u8f93\u5165\u540c\u4e8b\u59d3\u540d",
+    fetchingStyle:"\u6b63\u5728\u83b7\u53d6\u6d88\u606f\u5e76\u5206\u6790\u98ce\u683c...",
+    distillSuccess:"\u84b8\u998f\u6210\u529f\uff01",
+    test:"\u6d4b\u8bd5",
+    // Relation labels
+    relPeer:"\u5e73\u7ea7",
+    relJunior:"\u4e0b\u7ea7",
+    relSenior:"\u4e0a\u7ea7",
+    relMentor:"\u5bfc\u5e08",
+    relCrush:"\u6697\u604b\u5bf9\u8c61",
+    relEx:"\u524d\u4efb",
   },
 };
 
@@ -767,6 +807,13 @@ function refreshUILang(){
   if(chatInput)chatInput.placeholder=t("chatPlaceholder");
   const sendBtn=document.querySelector("#distillChatCard .form-row button");
   if(sendBtn)sendBtn.textContent=t("send");
+  // Group search input
+  const groupInput=document.getElementById("distillGroupQuery");
+  if(groupInput)groupInput.placeholder=t("groupSearchPlaceholder");
+  // Re-render relation buttons with current language
+  renderDistillRelations();
+  // Reload distilled list to refresh button labels
+  loadDistilledList();
 }
 
 // Render servers table
@@ -1123,18 +1170,18 @@ let distillSelectedGroupChatId = null;
 let distillChatSlug = null;
 
 const DISTILL_RELATIONS = [
-  { id: "peer", label: "\u5E73\u7EA7", emoji: "" },
-  { id: "junior", label: "\u4E0B\u7EA7", emoji: "" },
-  { id: "senior", label: "\u4E0A\u7EA7", emoji: "" },
-  { id: "mentor", label: "\u5BFC\u5E08", emoji: "" },
-  { id: "crush", label: "\u6697\u604B\u5BF9\u8C61", emoji: "\u{1F60F}" },
-  { id: "ex", label: "\u524D\u4EFB", emoji: "\u{1F921}" },
+  { id: "peer", labelKey: "relPeer", emoji: "" },
+  { id: "junior", labelKey: "relJunior", emoji: "" },
+  { id: "senior", labelKey: "relSenior", emoji: "" },
+  { id: "mentor", labelKey: "relMentor", emoji: "" },
+  { id: "crush", labelKey: "relCrush", emoji: "\u{1F60F}" },
+  { id: "ex", labelKey: "relEx", emoji: "\u{1F921}" },
 ];
 
 function renderDistillRelations() {
   const el = document.getElementById("distillRelations");
   el.innerHTML = DISTILL_RELATIONS.map((r, i) => 
-    `<div class="intent-btn${i === 0 ? " active" : ""}" data-relation="${r.id}" onclick="selectDistillRelation(this)">${r.label}${r.emoji ? " " + r.emoji : ""}</div>`
+    `<div class="intent-btn${i === 0 ? " active" : ""}" data-relation="${r.id}" onclick="selectDistillRelation(this)">${t(r.labelKey)}${r.emoji ? " " + r.emoji : ""}</div>`
   ).join("");
 }
 
@@ -1155,7 +1202,7 @@ async function distillSearchGroup() {
   const query = document.getElementById("distillGroupQuery").value.trim();
   if (!query) return;
   const el = document.getElementById("distillGroupResults");
-  el.innerHTML = '<span class="note">Searching groups...</span>';
+  el.innerHTML = `<span class="note">${t("search")}...</span>`;
   try {
     const results = await api("/api/distill/search-group", {
       method: "POST",
@@ -1221,20 +1268,20 @@ function selectDistillContact(openId, name, p2pChatId) {
 
 async function startDistill() {
   const name = document.getElementById("distillName").value.trim();
-  if (!name) { alert("Please enter a colleague name"); return; }
+  if (!name) { alert(t("enterName")); return; }
   const limit = parseInt(document.getElementById("distillLimit").value) || 50;
   const chatId = distillSelectedSource === "group" ? distillSelectedGroupChatId : null;
 
   if (distillSelectedSource === "group" && !chatId) {
-    alert("Please search and select a group chat first");
+    alert(t("selectGroup"));
     return;
   }
 
   const btn = document.getElementById("distillBtn");
   const status = document.getElementById("distillStatus");
   btn.disabled = true;
-  btn.textContent = "\u23F3 Distilling...";
-  status.textContent = "Fetching messages and analyzing style...";
+  btn.textContent = "\u23F3 " + t("distilling");
+  status.textContent = t("fetchingStyle");
   status.style.color = "var(--text-secondary)";
 
   try {
@@ -1251,7 +1298,7 @@ async function startDistill() {
         chatId,
       }),
     });
-    status.textContent = "\u2705 Distilled successfully!";
+    status.textContent = "\u2705 " + t("distillSuccess");
     status.style.color = "var(--success)";
     loadDistilledList();
   } catch (e) {
@@ -1259,7 +1306,7 @@ async function startDistill() {
     status.style.color = "var(--danger)";
   } finally {
     btn.disabled = false;
-    btn.textContent = "\u{1F52C} Start Distilling";
+    btn.textContent = "\u{1F52C} " + t("startDistilling");
   }
 }
 
@@ -1273,22 +1320,24 @@ async function loadDistilledList() {
     const banner = document.getElementById("activeStyleBanner");
     if (activeSlug) {
       banner.style.display = "flex";
+      document.getElementById("activeStyleLabel").textContent = t("activeStyle") + ":";
       document.getElementById("activeStyleName").textContent = activeRes.name || activeSlug;
+      document.getElementById("deactivateBtn").textContent = t("deactivate");
     } else {
       banner.style.display = "none";
     }
 
     const el = document.getElementById("distilledList");
     if (!list.length) {
-      el.innerHTML = '<p class="empty">No distilled styles yet. Create one above.</p>';
+      el.innerHTML = `<p class="empty">${t("noDistilled")}</p>`;
       return;
     }
     el.innerHTML = list.map(d => {
-      const tags = (d.persona?.style_tags || []).map(t => `<code>${esc(t)}</code>`).join(" ");
+      const tags = (d.persona?.style_tags || []).map(tag => `<code>${esc(tag)}</code>`).join(" ");
       const isActive = d.slug === activeSlug;
       const applyBtn = isActive
-        ? `<button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">\u2714 Active</button>`
-        : `<button onclick="activateStyle('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} Apply</button>`;
+        ? `<button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">\u2714 ${t("active")}</button>`
+        : `<button onclick="activateStyle('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} ${t("apply")}</button>`;
       return `<div class="toggle-card${isActive ? " active" : ""}" style="padding:12px 16px;margin-bottom:8px">
         <div class="toggle-icon" style="font-size:16px">\u{1F9EC}</div>
         <div class="toggle-info" style="flex:1">
@@ -1298,7 +1347,7 @@ async function loadDistilledList() {
         </div>
         <div style="display:flex;gap:6px">
           ${applyBtn}
-          <button onclick="openDistillChat('${esc(d.slug)}','${esc(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} Test</button>
+          <button onclick="openDistillChat('${esc(d.slug)}','${esc(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} ${t("test")}</button>
           <button class="danger" onclick="deleteDistillProfile('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
         </div>
       </div>`;
@@ -1338,7 +1387,7 @@ function openDistillChat(slug, name) {
   distillChatSlug = slug;
   document.getElementById("distillChatCard").style.display = "block";
   document.getElementById("distillChatName").textContent = name;
-  document.getElementById("distillChatHistory").innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:20px">Start chatting with ${esc(name)}...</div>`;
+  document.getElementById("distillChatHistory").innerHTML = `<div style="color:var(--text-muted);text-align:center;padding:20px">${t("chatWith")} ${esc(name)}...</div>`;
   document.getElementById("distillChatInput").focus();
 }
 
@@ -1370,7 +1419,7 @@ async function sendDistillChat() {
 }
 
 async function deleteDistillProfile(slug) {
-  if (!confirm("Delete this distilled style?")) return;
+  if (!confirm(t("deleteConfirm"))) return;
   try {
     await api(`/api/distill/${slug}`, { method: "DELETE" });
     loadDistilledList();
