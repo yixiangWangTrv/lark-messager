@@ -54,27 +54,91 @@ async function detectOpencodeServePort() {
   return null;
 }
 
+// Check if a port is available by trying to connect
+async function isPortReachable(port) {
+  try {
+    const res = await fetch(`http://localhost:${port}/health`, { signal: AbortSignal.timeout(2000) });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+// Find an available port starting from base
+async function findAvailablePort(base = 4096) {
+  const net = await import("node:net");
+  for (let port = base; port < base + 100; port++) {
+    const available = await new Promise((resolve) => {
+      const server = net.createServer();
+      server.once("error", () => resolve(false));
+      server.once("listening", () => { server.close(); resolve(true); });
+      server.listen(port);
+    });
+    if (available) return port;
+  }
+  throw new Error(`No available port found starting from ${base}`);
+}
+
+// Start opencode serve on a given port
+async function startOpencodeServe(port, projectDir) {
+  const { spawn } = await import("node:child_process");
+  const proc = spawn("opencode", ["serve", "--port", String(port)], {
+    cwd: projectDir,
+    stdio: "ignore",
+    detached: false,
+  });
+
+  // Wait for it to become healthy
+  const maxWait = 15000;
+  const start = Date.now();
+  while (Date.now() - start < maxWait) {
+    await new Promise((r) => setTimeout(r, 500));
+    if (await isPortReachable(port)) return proc;
+  }
+  proc.kill();
+  throw new Error(`opencode serve started but not healthy after ${maxWait}ms on port ${port}`);
+}
+
 // Startup checks
 async function preflight() {
   log("Running preflight checks...");
 
-  // Check opencode serve — try configured URL first, then auto-detect from running process
+  // Check opencode serve — try configured URL, then auto-detect, then auto-start
   let healthy = await opencode.healthCheck();
   if (!healthy) {
-    log(`  opencode serve not reachable at ${config.opencode.base_url}, auto-detecting...`);
+    log("  auto-detecting opencode server...");
     const detectedPort = await detectOpencodeServePort();
     if (detectedPort) {
       const detectedUrl = `http://localhost:${detectedPort}`;
-      log(`  found opencode serve process on port ${detectedPort}, trying ${detectedUrl}...`);
       config.opencode.base_url = detectedUrl;
       opencode.baseUrl = detectedUrl;
       healthy = await opencode.healthCheck();
+      if (healthy) {
+        log(`✓ opencode serve found on port ${detectedPort}`);
+      }
     }
+
     if (!healthy) {
-      throw new Error(`opencode serve not reachable (tried config: ${config.opencode.base_url}, auto-detect: ${detectedPort || "none found"})`);
+      // No running server found — start one
+      const port = await findAvailablePort(4096);
+      log(`  no opencode serve running, starting on port ${port}...`);
+      const proc = await startOpencodeServe(port, config.opencode.project_directory || process.cwd());
+      const newUrl = `http://localhost:${port}`;
+      config.opencode.base_url = newUrl;
+      opencode.baseUrl = newUrl;
+      healthy = await opencode.healthCheck();
+      if (!healthy) {
+        proc.kill();
+        throw new Error(`opencode serve started on port ${port} but health check failed`);
+      }
+      log(`✓ opencode serve started on port ${port}`);
+
+      // Clean up on exit
+      process.on("exit", () => { try { proc.kill(); } catch {} });
     }
+  } else {
+    log(`✓ opencode serve reachable at ${config.opencode.base_url}`);
   }
-  log(`✓ opencode serve reachable at ${config.opencode.base_url}`);
 
   // Check lark-cli auth for both identities
   const { execFile } = await import("node:child_process");
