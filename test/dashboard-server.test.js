@@ -65,4 +65,13 @@ describe("DashboardServer", () => {
     const ct = res.headers.get("content-type");
     assert.ok(ct.includes("text/html"));
   });
+
+  it("GET / contains tab structure", async () => {
+    const res = await fetch(`${baseUrl}/`);
+    const html = await res.text();
+    assert.ok(html.includes("Sessions"));
+    assert.ok(html.includes("Servers"));
+    assert.ok(html.includes("Prompts"));
+    assert.ok(html.includes("Settings"));
+  });
 });

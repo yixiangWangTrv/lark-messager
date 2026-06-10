@@ -1,5 +1,384 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Oncall Bot Dashboard</title></head>
-<body><p>Dashboard loading...</p></body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oncall Bot Dashboard</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#1a1a2e;color:#e0e0e0;min-height:100vh}
+a{color:#4fc3f7;text-decoration:none}
+.header{background:#16213e;border-bottom:1px solid #0f3460;padding:12px 24px;display:flex;align-items:center;gap:16px}
+.header h1{font-size:18px;font-weight:600;color:#4fc3f7}
+.status-bar{display:flex;align-items:center;gap:16px;margin-left:auto;font-size:13px;color:#aaa}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+.dot.green{background:#4caf50}
+.dot.red{background:#f44336}
+.tabs{display:flex;background:#16213e;border-bottom:1px solid #0f3460;padding:0 24px}
+.tab{padding:10px 20px;cursor:pointer;border-bottom:2px solid transparent;font-size:14px;color:#aaa;transition:color .2s,border-color .2s}
+.tab:hover{color:#e0e0e0}
+.tab.active{color:#4fc3f7;border-bottom-color:#4fc3f7}
+.content{padding:24px;max-width:1200px;margin:0 auto}
+.panel{display:none}
+.panel.active{display:block}
+.card{background:#16213e;border:1px solid #0f3460;border-radius:8px;padding:16px;margin-bottom:16px}
+.card h3{font-size:15px;margin-bottom:12px;color:#4fc3f7}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:8px 12px;border-bottom:1px solid #0f3460}
+th{color:#aaa;font-weight:500}
+.empty{color:#666;font-style:italic;padding:20px;text-align:center}
+input,select,textarea{background:#1a1a2e;border:1px solid #0f3460;color:#e0e0e0;padding:8px 12px;border-radius:4px;font-size:13px;font-family:inherit}
+input:focus,select:focus,textarea:focus{outline:none;border-color:#4fc3f7}
+textarea{width:100%;min-height:80px;resize:vertical}
+button{background:#4fc3f7;color:#1a1a2e;border:none;padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;font-weight:500}
+button:hover{opacity:.9}
+button.danger{background:#f44336;color:#fff}
+button.secondary{background:#0f3460;color:#e0e0e0}
+.form-row{display:flex;gap:8px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.form-row label{font-size:13px;color:#aaa;min-width:80px}
+.intent-btns{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.intent-btn{background:#0f3460;color:#e0e0e0;padding:6px 14px;border-radius:4px;cursor:pointer;border:1px solid #0f3460;font-size:13px}
+.intent-btn.active{background:#4fc3f7;color:#1a1a2e;border-color:#4fc3f7}
+.field-group{margin-bottom:12px}
+.field-group label{display:block;font-size:12px;color:#aaa;margin-bottom:4px}
+.note{font-size:12px;color:#666;margin-top:4px}
+.keyword-box{background:#1a1a2e;border:1px solid #0f3460;border-radius:4px;padding:12px;font-size:12px;line-height:1.8;color:#aaa}
+.keyword-box strong{color:#e0e0e0}
+.keyword-box code{background:#0f3460;padding:2px 6px;border-radius:3px;color:#4fc3f7;font-size:11px}
+@keyframes highlight{from{background:rgba(79,195,247,.15)}to{background:transparent}}
+.highlight-row{animation:highlight 2s ease-out}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Oncall Bot Dashboard</h1>
+  <div class="status-bar">
+    <span><span class="dot red" id="statusDot"></span><span id="statusText">Connecting...</span></span>
+    <span>Server: <span id="boundServer">-</span></span>
+    <span>Port: <span id="dashPort">-</span></span>
+  </div>
+</div>
+
+<div class="tabs">
+  <div class="tab active" data-tab="sessions">Sessions</div>
+  <div class="tab" data-tab="servers">Servers</div>
+  <div class="tab" data-tab="prompts">Prompts</div>
+  <div class="tab" data-tab="settings">Settings</div>
+</div>
+
+<div class="content">
+  <!-- Sessions Panel -->
+  <div class="panel active" id="panel-sessions">
+    <div class="card">
+      <h3>Real-time Sessions</h3>
+      <div id="sessionsContent">
+        <p class="empty">No sessions yet. Waiting for triggers...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Servers Panel -->
+  <div class="panel" id="panel-servers">
+    <div class="card">
+      <h3>Start New Server</h3>
+      <div class="form-row">
+        <label>Port:</label>
+        <input type="number" id="newPort" placeholder="3000" style="width:100px">
+        <label>Project Dir:</label>
+        <input type="text" id="newDir" placeholder="/path/to/project" style="flex:1">
+        <button onclick="startServer()">Start</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Managed Servers</h3>
+      <div id="serversContent">
+        <p class="empty">No managed servers.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Prompts Panel -->
+  <div class="panel" id="panel-prompts">
+    <div class="card">
+      <h3>Intent Routing Keywords</h3>
+      <div class="keyword-box">
+        <p><strong>summary:</strong> <code>summary</code> <code>summarize</code> <code>summarise</code> <code>总结</code> <code>总结上面</code> <code>总结上面的对话</code></p>
+        <p><strong>incident_analysis:</strong> <code>incident</code> <code>error</code> <code>failure</code> <code>failing</code> <code>broken</code> <code>debug</code> <code>investigate</code> <code>排查</code> <code>报错</code> <code>故障</code> <code>异常</code></p>
+        <p><strong>pr_review:</strong> <code>GitHub PR URL pattern</code></p>
+        <p><strong>other:</strong> <code>fallback</code></p>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Prompt Editor</h3>
+      <div class="intent-btns" id="intentBtns">
+        <div class="intent-btn active" data-intent="summary">summary</div>
+        <div class="intent-btn" data-intent="incident_analysis">incident_analysis</div>
+        <div class="intent-btn" data-intent="pr_review">pr_review</div>
+        <div class="intent-btn" data-intent="other">other</div>
+      </div>
+      <div class="field-group">
+        <label>system_prefix</label>
+        <textarea id="promptPrefix"></textarea>
+      </div>
+      <div class="field-group">
+        <label>task_instructions</label>
+        <textarea id="promptTask"></textarea>
+      </div>
+      <div class="field-group">
+        <label>response_format</label>
+        <textarea id="promptFormat"></textarea>
+      </div>
+      <button onclick="savePrompts()">Save Prompts</button>
+    </div>
+  </div>
+
+  <!-- Settings Panel -->
+  <div class="panel" id="panel-settings">
+    <div class="card">
+      <h3>Language</h3>
+      <div class="form-row">
+        <label>Response Language:</label>
+        <select id="langSelect">
+          <option value="Respond in Chinese.">中文</option>
+          <option value="Respond in English.">English</option>
+          <option value="Respond in Bahasa Indonesia.">Bahasa Indonesia</option>
+          <option value="Respond in Elvish (Sindarin style, Tolkien).">精灵语 (Elvish)</option>
+        </select>
+        <button onclick="saveLang()">Apply to All Intents</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Dashboard Port</h3>
+      <div class="form-row">
+        <label>Port:</label>
+        <input type="number" id="settingsPort" style="width:120px">
+        <button onclick="savePort()">Save</button>
+      </div>
+      <p class="note">Requires restart to take effect.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// XSS escape
+function esc(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML}
+
+// State
+let prompts={};
+let currentIntent="summary";
+let evtSource=null;
+
+// Tab switching
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("panel-"+t.dataset.tab).classList.add("active");
+  });
+});
+
+// Intent button switching
+document.getElementById("intentBtns").addEventListener("click",e=>{
+  const btn=e.target.closest(".intent-btn");
+  if(!btn)return;
+  document.querySelectorAll(".intent-btn").forEach(x=>x.classList.remove("active"));
+  btn.classList.add("active");
+  saveCurrentPromptState();
+  currentIntent=btn.dataset.intent;
+  loadPromptFields();
+});
+
+function saveCurrentPromptState(){
+  if(!prompts[currentIntent])prompts[currentIntent]={};
+  prompts[currentIntent].system_prefix=document.getElementById("promptPrefix").value;
+  prompts[currentIntent].task_instructions=document.getElementById("promptTask").value;
+  prompts[currentIntent].response_format=document.getElementById("promptFormat").value;
+}
+
+function loadPromptFields(){
+  const p=prompts[currentIntent]||{};
+  document.getElementById("promptPrefix").value=p.system_prefix||"";
+  document.getElementById("promptTask").value=p.task_instructions||"";
+  document.getElementById("promptFormat").value=p.response_format||"";
+}
+
+// API helpers
+async function api(path,opts){
+  const res=await fetch(path,opts);
+  if(!res.ok)throw new Error(`API ${path}: ${res.status}`);
+  return res.json();
+}
+
+// Load initial data
+async function init(){
+  try{
+    const status=await api("/api/status");
+    document.getElementById("boundServer").textContent=status.boundServer||"-";
+    document.getElementById("dashPort").textContent=status.dashboardPort||"-";
+  }catch(e){console.error("status",e)}
+
+  try{
+    const sessions=await api("/api/sessions");
+    renderSessions(sessions);
+  }catch(e){console.error("sessions",e)}
+
+  try{
+    const servers=await api("/api/servers");
+    renderServers(servers);
+  }catch(e){console.error("servers",e)}
+
+  try{
+    prompts=await api("/api/prompts");
+    loadPromptFields();
+  }catch(e){console.error("prompts",e)}
+
+  try{
+    const cfg=await api("/api/config");
+    if(cfg.dashboard&&cfg.dashboard.port)document.getElementById("settingsPort").value=cfg.dashboard.port;
+  }catch(e){console.error("config",e)}
+
+  connectSSE();
+}
+
+// Render sessions table
+function renderSessions(sessions){
+  const el=document.getElementById("sessionsContent");
+  if(!sessions.length){
+    el.innerHTML='<p class="empty">No sessions yet. Waiting for triggers...</p>';
+    return;
+  }
+  let html='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th></tr></thead><tbody>';
+  for(const s of sessions){
+    html+=`<tr><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
+  }
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+// Render servers table
+function renderServers(servers){
+  const el=document.getElementById("serversContent");
+  if(!servers.length){
+    el.innerHTML='<p class="empty">No managed servers.</p>';
+    return;
+  }
+  let html='<table><thead><tr><th>ID</th><th>Port</th><th>PID</th><th>Status</th><th>Started</th><th>Actions</th></tr></thead><tbody>';
+  for(const s of servers){
+    html+=`<tr><td>${esc(s.id)}</td><td>${esc(s.port)}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${esc(s.startedAt||"-")}</td>`;
+    html+=`<td><button class="secondary" onclick="bindServer('${esc(s.id)}')">Bind</button> `;
+    html+=`<button class="secondary" onclick="restartServer('${esc(s.id)}')">Restart</button> `;
+    html+=`<button class="danger" onclick="stopServer('${esc(s.id)}')">Stop</button></td></tr>`;
+  }
+  html+='</tbody></table>';
+  el.innerHTML=html;
+}
+
+// Server actions
+async function startServer(){
+  const port=document.getElementById("newPort").value;
+  const projectDir=document.getElementById("newDir").value;
+  if(!port||!projectDir){alert("Port and project dir required");return}
+  try{
+    await api("/api/servers",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({port:Number(port),projectDir})});
+    const servers=await api("/api/servers");
+    renderServers(servers);
+    document.getElementById("newPort").value="";
+    document.getElementById("newDir").value="";
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+async function stopServer(id){
+  try{
+    await api(`/api/servers/${id}/stop`,{method:"POST"});
+    const servers=await api("/api/servers");
+    renderServers(servers);
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+async function restartServer(id){
+  try{
+    await api(`/api/servers/${id}/restart`,{method:"POST"});
+    const servers=await api("/api/servers");
+    renderServers(servers);
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+async function bindServer(id){
+  try{
+    const res=await api(`/api/servers/${id}/bind`,{method:"POST"});
+    document.getElementById("boundServer").textContent=res.base_url||"-";
+    alert("Bound to "+res.base_url);
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+// Prompts save
+async function savePrompts(){
+  saveCurrentPromptState();
+  try{
+    await api("/api/prompts",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(prompts)});
+    alert("Prompts saved");
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+// Language save
+async function saveLang(){
+  const val=document.getElementById("langSelect").value;
+  for(const k of Object.keys(prompts)){
+    if(!prompts[k])prompts[k]={};
+    prompts[k].response_format=val;
+  }
+  loadPromptFields();
+  try{
+    await api("/api/prompts",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(prompts)});
+    alert("Language updated for all intents");
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+// Port save
+async function savePort(){
+  const port=Number(document.getElementById("settingsPort").value);
+  if(!port){alert("Invalid port");return}
+  try{
+    await api("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({dashboard:{port}})});
+    alert("Port saved. Restart required.");
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+// SSE
+function connectSSE(){
+  if(evtSource)evtSource.close();
+  evtSource=new EventSource("/api/events");
+  evtSource.onopen=()=>{
+    document.getElementById("statusDot").className="dot green";
+    document.getElementById("statusText").textContent="Connected";
+  };
+  evtSource.onerror=()=>{
+    document.getElementById("statusDot").className="dot red";
+    document.getElementById("statusText").textContent="Disconnected";
+  };
+  evtSource.addEventListener("session_created",e=>{
+    try{
+      const s=JSON.parse(e.data);
+      addSessionRow(s);
+    }catch(err){console.error("sse parse",err)}
+  });
+}
+
+function addSessionRow(s){
+  const el=document.getElementById("sessionsContent");
+  let tbody=el.querySelector("tbody");
+  if(!tbody){
+    el.innerHTML='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th></tr></thead><tbody></tbody></table>';
+    tbody=el.querySelector("tbody");
+  }
+  const tr=document.createElement("tr");
+  tr.className="highlight-row";
+  tr.innerHTML=`<td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td>`;
+  tbody.insertBefore(tr,tbody.firstChild);
+}
+
+init();
+</script>
+</body>
 </html>
