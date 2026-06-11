@@ -1,3 +1,5 @@
 node_modules/
 .oncall-bot.lock
 distilled/
+.worktrees/
+data/session-todos.json

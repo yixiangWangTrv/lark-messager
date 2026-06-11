@@ -81,6 +81,7 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .toggle-info{flex:1;min-width:0}
 .toggle-info .toggle-title{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:2px}
 .toggle-info .toggle-desc{font-size:12px;color:var(--text-secondary);line-height:1.4}
+.trigger-permissions{white-space:pre-line;margin-top:6px}
 .toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
 .toggle-switch input{opacity:0;width:0;height:0}
 .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--toggle-bg);border-radius:24px;transition:.3s}
@@ -441,6 +442,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <div class="toggle-info">
           <div class="toggle-title">@Bot Mention <span class="badge badge-safe">Recommended</span></div>
           <div class="toggle-desc">Bot responds when someone @mentions it directly in a group chat.</div>
+          <div class="note trigger-permissions" id="mentionBotPermissions"></div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="modeMentionBot" onchange="onToggleChange()">
@@ -453,6 +455,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <div class="toggle-info">
           <div class="toggle-title">@Owner Mention</div>
           <div class="toggle-desc">Bot responds when someone @mentions you (the owner) in a group where the bot is present.</div>
+          <div class="note trigger-permissions" id="mentionOwnerPermissions"></div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="modeMentionOwner" onchange="onToggleChange()">
@@ -465,6 +468,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <div class="toggle-info">
           <div class="toggle-title">All Messages <span class="badge badge-warn">Caution</span></div>
           <div class="toggle-desc">Bot responds to every message in group chats. High volume — use carefully.</div>
+          <div class="note trigger-permissions" id="allMessagesPermissions"></div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="modeAllMessages" onchange="onToggleChange()">
@@ -536,6 +540,20 @@ let currentSessionDetailId=null;
 let currentSessionDetailMeta=null;
 let currentSessionsById={};
 let knowledgeBaseState={enabled:true,items:[]};
+const TRIGGER_MODE_PERMISSION_HINTS={
+  mention_bot:{
+    required:["im:message.group_at_msg"],
+    optional:["im:message"],
+  },
+  mention_owner:{
+    required:["im:message.group_at_msg"],
+    optional:["contact:user.base:readonly"],
+  },
+  all_messages:{
+    required:["im:message"],
+    optional:["im:message.group_at_msg"],
+  },
+};
 
 // Tab switching
 document.querySelectorAll(".tab").forEach(t=>{
@@ -633,6 +651,7 @@ async function init(){
   }catch(e){console.error("config",e)}
 
   await loadTriggerModes();
+  renderTriggerPermissionHints();
   refreshUILang();
   await loadPuaMode();
   await loadDistilledList();
@@ -689,6 +708,8 @@ const i18n={
     mentionOwnerDesc:"Bot responds when someone @mentions you (the owner) in a group where the bot is present.",
     allMsgTitle:"All Messages",
     allMsgDesc:"Bot responds to every message in group chats. High volume — use carefully.",
+    requiredPermissions:"Required",
+    optionalPermissions:"Optional",
     recommended:"Recommended",
     caution:"Caution",
     saveTriggerModes:"Save Trigger Modes",
@@ -775,6 +796,8 @@ const i18n={
     mentionOwnerDesc:"\u6709\u4eba\u5728\u673a\u5668\u4eba\u6240\u5728\u7fa4\u91cc @\u4f60 \u65f6\u89e6\u53d1\u3002",
     allMsgTitle:"\u6240\u6709\u6d88\u606f",
     allMsgDesc:"\u7fa4\u91cc\u6240\u6709\u6d88\u606f\u90fd\u89e6\u53d1\uff0c\u8c28\u614e\u4f7f\u7528\u3002",
+    requiredPermissions:"\u5fc5\u9700\u6743\u9650",
+    optionalPermissions:"\u53ef\u9009\u6743\u9650",
     recommended:"\u63a8\u8350",
     caution:"\u8c28\u614e",
     saveTriggerModes:"\u4fdd\u5b58\u89e6\u53d1\u6a21\u5f0f",
@@ -860,6 +883,8 @@ const i18n={
     mentionOwnerDesc:"Bot merespons saat seseorang @mention Anda di grup yang ada bot.",
     allMsgTitle:"Semua Pesan",
     allMsgDesc:"Bot merespons setiap pesan di grup. Volume tinggi \u2014 gunakan hati-hati.",
+    requiredPermissions:"Perlu",
+    optionalPermissions:"Opsional",
     recommended:"Direkomendasikan",
     caution:"Hati-hati",
     saveTriggerModes:"Simpan Mode Trigger",
@@ -943,6 +968,8 @@ const i18n={
     mentionOwnerDesc:"I bot na-queta ir @le peth si hoth-chat.",
     allMsgTitle:"Ilya Quettar",
     allMsgDesc:"I bot na-queta na ilya quetta. R\u00edm \u2014 tiro-le.",
+    requiredPermissions:"Maer Bae",
+    optionalPermissions:"Ecet",
     recommended:"Estellennen",
     caution:"Tirniel",
     saveTriggerModes:"Harya Lenn\u00eb Orthor",
@@ -1043,6 +1070,7 @@ function refreshUILang(){
   if(allTitle)allTitle.innerHTML=`${t("allMsgTitle")} <span class="badge badge-warn">${t("caution")}</span>`;
   const allDesc=document.querySelector("#cardAllMessages .toggle-desc");
   if(allDesc)allDesc.textContent=t("allMsgDesc");
+  renderTriggerPermissionHints();
   // Save trigger modes button
   const saveTmBtn=document.querySelector("#panel-settings .card:first-child button");
   if(saveTmBtn)saveTmBtn.textContent=t("saveTriggerModes");
@@ -1108,7 +1136,7 @@ function renderServers(servers){
     html+=`<tr class="${rowClass}"><td>${esc(s.port)}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
     html+=`<td>`;
     if(s.status==="running"){
-      html+=`<button class="danger" onclick="confirmStopServer('${esc(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
+      html+=`<button class="danger" onclick="confirmStopServer('${escJsStr(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
     }
     html+=`</td></tr>`;
   }
@@ -1412,6 +1440,31 @@ function toggleMode(inputId){
 
 function onToggleChange(){
   updateToggleCards();
+}
+
+function formatTriggerPermissionHints(hints){
+  if(!hints)return "";
+  const lines=[];
+  if(Array.isArray(hints.required)&&hints.required.length){
+    lines.push(`${t("requiredPermissions")}: ${hints.required.join(", ")}`);
+  }
+  if(Array.isArray(hints.optional)&&hints.optional.length){
+    lines.push(`${t("optionalPermissions")}: ${hints.optional.join(", ")}`);
+  }
+  return lines.join("\n");
+}
+
+function renderTriggerPermissionHints(){
+  const targets=[
+    ["mentionBotPermissions","mention_bot"],
+    ["mentionOwnerPermissions","mention_owner"],
+    ["allMessagesPermissions","all_messages"],
+  ];
+  for(const [elementId,modeKey] of targets){
+    const el=document.getElementById(elementId);
+    if(!el)continue;
+    el.textContent=formatTriggerPermissionHints(TRIGGER_MODE_PERMISSION_HINTS[modeKey]);
+  }
 }
 
 function updateToggleCards(){
@@ -1764,7 +1817,7 @@ async function distillSearchGroup() {
       return;
     }
     el.innerHTML = results.map(g =>
-      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillGroup('${esc(g.chat_id)}','${esc(g.name)}')">
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillGroup('${escJsStr(g.chat_id)}','${escJsStr(g.name)}')">
         <div class="toggle-info">
           <div class="toggle-title" style="font-size:13px">${esc(g.name)}</div>
           <div class="toggle-desc" style="font-size:11px;color:var(--text-muted)">${esc(g.description || "").slice(0, 60)}</div>
@@ -1797,7 +1850,7 @@ async function distillSearchContact() {
       return;
     }
     el.innerHTML = results.map(u =>
-      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${esc(u.open_id)}','${esc(u.name)}','${esc(u.p2p_chat_id||"")}')">
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${escJsStr(u.open_id)}','${escJsStr(u.name)}','${escJsStr(u.p2p_chat_id||"")}')">
         <div class="toggle-info">
           <div class="toggle-title" style="font-size:13px">${esc(u.name)}</div>
           <div class="toggle-desc">${esc(u.department || "")}</div>
@@ -1887,7 +1940,7 @@ async function loadDistilledList() {
       const isActive = d.slug === activeSlug;
       const applyBtn = isActive
         ? `<button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">\u2714 ${t("active")}</button>`
-        : `<button onclick="activateStyle('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} ${t("apply")}</button>`;
+        : `<button onclick="activateStyle('${escJsStr(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} ${t("apply")}</button>`;
       return `<div class="toggle-card${isActive ? " active" : ""}" style="padding:12px 16px;margin-bottom:8px">
         <div class="toggle-icon" style="font-size:16px">\u{1F9EC}</div>
         <div class="toggle-info" style="flex:1">
@@ -1897,8 +1950,8 @@ async function loadDistilledList() {
         </div>
         <div style="display:flex;gap:6px">
           ${applyBtn}
-          <button onclick="openDistillChat('${esc(d.slug)}','${esc(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} ${t("test")}</button>
-          <button class="danger" onclick="deleteDistillProfile('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
+          <button onclick="openDistillChat('${escJsStr(d.slug)}','${escJsStr(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} ${t("test")}</button>
+          <button class="danger" onclick="deleteDistillProfile('${escJsStr(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
         </div>
       </div>`;
     }).join("");

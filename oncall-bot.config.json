@@ -16,6 +16,11 @@
       ],
       "group_ids": [],
       "group_names": []
+    },
+    "trigger_modes": {
+      "mention_bot": true,
+      "mention_owner": true,
+      "all_messages": false
     }
   },
   "context": {
@@ -53,7 +58,12 @@
   },
   "dashboard": {
     "port": 8015,
-    "enabled": true
+    "enabled": true,
+    "language": "en"
+  },
+  "knowledge_base": {
+    "enabled": true,
+    "items": []
   },
   "knowledge_base": {
     "enabled": true,
@@ -79,6 +89,15 @@
       "system_prefix": "You answer the user's chat request using the provided chat context.",
       "task_instructions": "Answer the request directly from the chat context. Do not use Datadog unless the user explicitly asks for system investigation.",
       "response_format": "Respond in English."
+    }
+  },
+  "pua": {
+    "enabled": false,
+    "intents": {
+      "summary": false,
+      "incident_analysis": false,
+      "pr_review": false,
+      "other": false
     }
   }
 }

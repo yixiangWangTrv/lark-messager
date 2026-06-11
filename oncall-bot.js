@@ -15,6 +15,7 @@ import { TriggerGuard } from "./lib/trigger-guard.js";
 import { processTrigger } from "./lib/trigger-orchestration.js";
 import { DashboardServer } from "./lib/dashboard-server.js";
 import { botEvents } from "./lib/bot-events.js";
+import { detectOpencodeServeProcesses, prioritizeOpencodeServeProcesses } from "./lib/opencode-serve-discovery.js";
 
 // Parse args
 const configPath = process.argv.includes("--config")
@@ -33,31 +34,10 @@ const replySender = new ReplySender(config);
 const queue = new ChatQueue(config.concurrency);
 const triggerGuard = new TriggerGuard();
 
-// Detect actual opencode serve port from running processes
-async function detectOpencodeServePort() {
-  const { execFile } = await import("node:child_process");
-  const { promisify } = await import("node:util");
-  const execFileAsync = promisify(execFile);
-
-  try {
-    const { stdout } = await execFileAsync("ps", ["aux"], { timeout: 5000 });
-    const lines = stdout.split("\n").filter((l) => l.includes("opencode serve") || l.includes("opencode") && l.includes("--port"));
-    for (const line of lines) {
-      const portMatch = line.match(/--port\s+(\d+)/);
-      if (portMatch) {
-        return parseInt(portMatch[1], 10);
-      }
-    }
-  } catch {
-    // ps failed, fall through
-  }
-  return null;
-}
-
 // Check if a port is available by trying to connect
 async function isPortReachable(port) {
   try {
-    const res = await fetch(`http://localhost:${port}/health`, { signal: AbortSignal.timeout(2000) });
+    const res = await fetch(`http://localhost:${port}/global/health`, { signal: AbortSignal.timeout(2000) });
     return res.ok;
   } catch {
     return false;
@@ -107,14 +87,21 @@ async function preflight() {
   let healthy = await opencode.healthCheck();
   if (!healthy) {
     log("  auto-detecting opencode server...");
-    const detectedPort = await detectOpencodeServePort();
-    if (detectedPort) {
-      const detectedUrl = `http://localhost:${detectedPort}`;
+    const configuredPort = Number(new URL(config.opencode.base_url).port || 80);
+    const detectedServers = prioritizeOpencodeServeProcesses(
+      await detectOpencodeServeProcesses(),
+      configuredPort,
+    );
+    for (const detected of detectedServers) {
+      const detectedUrl = `http://localhost:${detected.port}`;
       config.opencode.base_url = detectedUrl;
+      config.opencode.password = detected.password;
       opencode.baseUrl = detectedUrl;
+      opencode.password = detected.password;
       healthy = await opencode.healthCheck();
       if (healthy) {
-        log(`✓ opencode serve found on port ${detectedPort}`);
+        log(`✓ opencode serve found on port ${detected.port}`);
+        break;
       }
     }
 
