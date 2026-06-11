@@ -345,14 +345,14 @@ button:disabled{opacity:.6;cursor:not-allowed}
   <!-- Prompts Panel -->
   <div class="panel" id="panel-prompts">
     <div class="card" style="border-color:var(--danger);border-width:2px">
-      <h3 style="color:var(--danger)">&#x26A0;&#xFE0F; PUA Mode <span class="badge badge-warn" style="font-size:11px">Use with Caution</span></h3>
-      <p class="note" style="margin-bottom:12px;color:var(--warn)">Enables aggressive persistence mode — AI will not give up easily, will exhaust all solutions, and will self-verify before claiming completion. Requires the PUA skill installed on the OpenCode instance.</p>
+      <h3 style="color:var(--danger)">&#x26A0;&#xFE0F; performance Mode (Ultimate AI Machine) <span class="badge badge-warn" style="font-size:11px">Use with Caution</span></h3>
+      <p class="note" style="margin-bottom:12px;color:var(--warn)">Enables aggressive persistence mode — AI will not give up easily, will exhaust all solutions, and will self-verify before claiming completion. Requires the performance skill installed on the OpenCode instance.</p>
 
       <div class="toggle-card" id="cardPuaEnabled" onclick="togglePua('puaEnabled')">
         <div class="toggle-icon" style="background:rgba(244,67,54,.15);color:var(--danger)">&#x1F525;</div>
         <div class="toggle-info">
-          <div class="toggle-title">Enable PUA Mode <span class="badge badge-warn">Caution</span></div>
-          <div class="toggle-desc">Master switch. When ON, selected intents below will receive PUA skill injection.</div>
+          <div class="toggle-title">Enable performance Mode (Ultimate AI Machine) <span class="badge badge-warn">Caution</span></div>
+          <div class="toggle-desc">Master switch. When ON, selected intents below will receive performance skill injection.</div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="puaEnabled" onchange="onPuaToggleChange()">
@@ -361,7 +361,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
       </div>
 
       <div id="puaIntentToggles" style="margin-top:12px;padding-left:16px;opacity:0.5;pointer-events:none">
-        <p class="note" style="margin-bottom:8px">Select which intents activate PUA behavior:</p>
+        <p class="note" style="margin-bottom:8px">Select which intents activate performance behavior:</p>
 
         <div class="toggle-card" id="cardPuaSummary" onclick="togglePua('puaSummary')" style="padding:12px 16px">
           <div class="toggle-icon" style="width:32px;height:32px;font-size:14px">&#x1F4DD;</div>
@@ -732,6 +732,7 @@ const i18n={
     stopConfirmMsg:"Are you sure you want to stop this opencode server? This may cause the oncall bot to become unavailable.",
     stopConfirmBound:"WARNING: This is the server currently bound to the bot (port {port}). Stopping it will make the bot unable to process any new requests.",
     stopBtn:"Stop Server",
+    stopBotBtn:"Stop Bot",
     cancelBtn:"Cancel",
     noServers:"No opencode servers detected.",
     bound:"BOUND",
@@ -823,6 +824,7 @@ const i18n={
     stopConfirmMsg:"\u786e\u5b9a\u8981\u505c\u6b62\u8fd9\u4e2a opencode \u670d\u52a1\u5417\uff1f\u8fd9\u53ef\u80fd\u4f1a\u5bfc\u81f4 oncall bot \u4e0d\u53ef\u7528\u3002",
     stopConfirmBound:"\u26a0\ufe0f \u8b66\u544a\uff1a\u8fd9\u662f\u5f53\u524d Bot \u7ed1\u5b9a\u7684\u670d\u52a1\uff08\u7aef\u53e3 {port}\uff09\u3002\u505c\u6b62\u540e Bot \u5c06\u65e0\u6cd5\u5904\u7406\u4efb\u4f55\u65b0\u8bf7\u6c42\u3002",
     stopBtn:"\u505c\u6b62\u670d\u52a1",
+    stopBotBtn:"\u505c\u6b62 Bot",
     cancelBtn:"\u53d6\u6d88",
     noServers:"\u672a\u68c0\u6d4b\u5230 opencode \u670d\u52a1\u3002",
     bound:"\u5df2\u7ed1\u5b9a",
@@ -914,6 +916,7 @@ const i18n={
     stopConfirmMsg:"Yakin ingin menghentikan server opencode ini? Bot oncall mungkin tidak tersedia.",
     stopConfirmBound:"\u26a0\ufe0f PERINGATAN: Ini adalah server yang terikat ke bot (port {port}). Menghentikannya akan membuat bot tidak dapat memproses permintaan baru.",
     stopBtn:"Hentikan Server",
+    stopBotBtn:"Hentikan Bot",
     cancelBtn:"Batal",
     noServers:"Tidak ada server opencode terdeteksi.",
     bound:"TERIKAT",
@@ -1189,15 +1192,15 @@ function renderServers(servers){
     const portLabel=isBot?"-":esc(s.port);
     const boundBadge=s.bound?`<span class="badge badge-safe" style="margin-left:6px">${t("bound")}</span>`:"";
     const sourceBadge=isBot
-      ?`<span style="color:var(--warn)">${t("bot")}</span>`
+      ?`<span style="color:var(--warn)">${t("bot")} 🤖</span>`
       :s.source==="external"
-        ?`<span style="color:var(--text-secondary)">${t("external")}</span>`
-        :`<span style="color:var(--accent)">${t("managed")}</span>`;
+        ?`<span style="color:var(--text-secondary)">Opencode Server 💻 (${t("external")})</span>`
+        :`<span style="color:var(--accent)">Opencode Server 💻 (${t("managed")})</span>`;
     const rowClass=[s.bound?"server-row-bound":"",isBot?"server-row-bot":""].filter(Boolean).join(" ");
     html+=`<tr class="${rowClass}"><td>${portLabel}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
     html+=`<td>`;
     if(s.status==="running"){
-      html+=`<button class="danger" onclick="confirmStopServer('${escJsStr(s.id)}',${isBot?`'${escJsStr(t("bot"))}'`:s.port},${!!s.bound})">${t("stopBtn")}</button>`;
+      html+=`<button class="danger" onclick="confirmStopServer('${escJsStr(s.id)}',${isBot?`'${escJsStr(t("bot"))}'`:s.port},${!!s.bound})">${isBot?t("stopBotBtn"):t("stopBtn")}</button>`;
       html+=` <button class="secondary" onclick="restartServer('${escJsStr(s.id)}')">${t("restart")}</button>`;
     }
     html+=`</td></tr>`;
