@@ -235,11 +235,16 @@ describe("DashboardServer", () => {
     assert.deepEqual(data, []);
   });
 
-  it("GET /api/servers returns empty array initially", async () => {
+  it("GET /api/servers returns array (may include detected external servers)", async () => {
     const res = await fetch(`${baseUrl}/api/servers`);
     assert.equal(res.status, 200);
     const data = await res.json();
-    assert.deepEqual(data, []);
+    assert.ok(Array.isArray(data));
+    // Each entry should have expected fields
+    for (const s of data) {
+      assert.ok(typeof s.port === "number");
+      assert.ok(typeof s.status === "string");
+    }
   });
 
   it("GET / returns HTML", async () => {
@@ -253,6 +258,7 @@ describe("DashboardServer", () => {
     const res = await fetch(`${baseUrl}/`);
     const html = await res.text();
     assert.ok(html.includes("Sessions"));
+    assert.ok(html.includes("Knowledge Base"));
     assert.ok(html.includes("Servers"));
     assert.ok(html.includes("Prompts"));
     assert.ok(html.includes("Settings"));
