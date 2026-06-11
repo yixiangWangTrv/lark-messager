@@ -1108,7 +1108,7 @@ function renderServers(servers){
     html+=`<tr class="${rowClass}"><td>${esc(s.port)}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
     html+=`<td>`;
     if(s.status==="running"){
-      html+=`<button class="danger" onclick="confirmStopServer('${esc(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
+      html+=`<button class="danger" onclick="confirmStopServer('${escJsStr(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
     }
     html+=`</td></tr>`;
   }
@@ -1764,7 +1764,7 @@ async function distillSearchGroup() {
       return;
     }
     el.innerHTML = results.map(g =>
-      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillGroup('${esc(g.chat_id)}','${esc(g.name)}')">
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillGroup('${escJsStr(g.chat_id)}','${escJsStr(g.name)}')">
         <div class="toggle-info">
           <div class="toggle-title" style="font-size:13px">${esc(g.name)}</div>
           <div class="toggle-desc" style="font-size:11px;color:var(--text-muted)">${esc(g.description || "").slice(0, 60)}</div>
@@ -1797,7 +1797,7 @@ async function distillSearchContact() {
       return;
     }
     el.innerHTML = results.map(u =>
-      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${esc(u.open_id)}','${esc(u.name)}','${esc(u.p2p_chat_id||"")}')">
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${escJsStr(u.open_id)}','${escJsStr(u.name)}','${escJsStr(u.p2p_chat_id||"")}')">
         <div class="toggle-info">
           <div class="toggle-title" style="font-size:13px">${esc(u.name)}</div>
           <div class="toggle-desc">${esc(u.department || "")}</div>
@@ -1887,7 +1887,7 @@ async function loadDistilledList() {
       const isActive = d.slug === activeSlug;
       const applyBtn = isActive
         ? `<button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">\u2714 ${t("active")}</button>`
-        : `<button onclick="activateStyle('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} ${t("apply")}</button>`;
+        : `<button onclick="activateStyle('${escJsStr(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} ${t("apply")}</button>`;
       return `<div class="toggle-card${isActive ? " active" : ""}" style="padding:12px 16px;margin-bottom:8px">
         <div class="toggle-icon" style="font-size:16px">\u{1F9EC}</div>
         <div class="toggle-info" style="flex:1">
@@ -1897,8 +1897,8 @@ async function loadDistilledList() {
         </div>
         <div style="display:flex;gap:6px">
           ${applyBtn}
-          <button onclick="openDistillChat('${esc(d.slug)}','${esc(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} ${t("test")}</button>
-          <button class="danger" onclick="deleteDistillProfile('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
+          <button onclick="openDistillChat('${escJsStr(d.slug)}','${escJsStr(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} ${t("test")}</button>
+          <button class="danger" onclick="deleteDistillProfile('${escJsStr(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
         </div>
       </div>`;
     }).join("");
