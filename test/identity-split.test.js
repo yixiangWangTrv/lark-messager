@@ -74,7 +74,9 @@ describe("identity split", () => {
     assert.equal(config.prompt.summary.response_format, "Respond with a custom summary format.");
     assert.deepEqual(config.prompt.incident_analysis, defaults.prompt.incident_analysis);
     assert.deepEqual(config.prompt.pr_review, defaults.prompt.pr_review);
-    assert.deepEqual(config.prompt.other, defaults.prompt.other);
+    assert.deepEqual(config.prompt.common_task, defaults.prompt.common_task);
+    assert.equal(config.prompt.other, undefined);
+    assert.equal(config.pua.intents.common_task, defaults.pua.intents.common_task);
   });
 
   it("preserves legacy lark.identity as a fallback for split identities", () => {

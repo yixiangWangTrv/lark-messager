@@ -10,11 +10,16 @@ const baseConfig = {
     thread_only_notice: "This message was sent in a thread. I will only use messages from this thread as context.",
     trigger_only_fallback_notice: "I could not load thread history, so I will use only the trigger message itself.",
   },
+  intent_routing: {
+    summary: { keywords: [] },
+    incident_analysis: { keywords: [] },
+    pr_review: { keywords: [], use_github_pr_url: true },
+  },
   prompt: {
-    other: {
-      system_prefix: "You answer the user's chat request.",
-      task_instructions: "Answer directly from context.",
-      response_format: "Keep it concise.",
+    common_task: {
+      system_prefix: "You are an AI assistant.",
+      task_instructions: "Use the trigger message as the primary task instruction.",
+      response_format: "Keep the reply direct and useful.",
     },
   },
 };
@@ -83,16 +88,16 @@ describe("handleTrigger orchestration", () => {
       },
     };
 
-    const detectIntentFn = (receivedEvent, messages) => {
-      detectIntentCalls.push({ receivedEvent, messages });
-      return "other";
+    const detectIntentFn = (receivedEvent, messages, routingConfig) => {
+      detectIntentCalls.push({ receivedEvent, messages, routingConfig });
+      return "common_task";
     };
 
     const buildSessionOptionsFn = (options) => {
       sessionOptionsCalls.push(options);
       return {
-        title: "Ops Room-other-2026-06-09",
-        cacheKey: "other:oc_chat1:om_1",
+        title: "Ops Room-common_task-2026-06-09",
+        cacheKey: "common_task:oc_chat1:om_1",
         reuse: false,
       };
     };
@@ -134,9 +139,10 @@ describe("handleTrigger orchestration", () => {
     assert.deepEqual(detectIntentCalls, [{
       receivedEvent: event,
       messages: ["[06/09 15:07] user: hi there"],
+      routingConfig: baseConfig.intent_routing,
     }]);
     assert.deepEqual(sessionOptionsCalls, [{
-      intent: "other",
+      intent: "common_task",
       chatId: "oc_chat1",
       chatName: "Ops Room",
       today: fixedToday,
@@ -145,7 +151,7 @@ describe("handleTrigger orchestration", () => {
       threadId: "omt_1",
     }]);
     assert.deepEqual(promptBuildCalls, [{
-      intent: "other",
+      intent: "common_task",
       promptConfig: baseConfig.prompt,
       knowledgeBase: undefined,
       event,
@@ -179,6 +185,7 @@ describe("handleTrigger orchestration", () => {
     const fixedToday = "2026-06-09";
     const replies = [];
     const steps = [];
+    const promptBuildCalls = [];
 
     const event = {
       chat_id: "oc_chat1",
@@ -227,9 +234,12 @@ describe("handleTrigger orchestration", () => {
       contextFetcher,
       opencode,
       replySender,
-      detectIntentFn: () => "other",
+      detectIntentFn: () => "common_task",
       buildSessionOptionsFn: () => ({ title: "t", cacheKey: "k", reuse: false }),
-      buildIntentPromptFn: () => "prompt",
+      buildIntentPromptFn: (options) => {
+        promptBuildCalls.push(options);
+        return "prompt";
+      },
       getTodayFn: () => fixedToday,
     });
 
@@ -259,6 +269,8 @@ describe("handleTrigger orchestration", () => {
         options: undefined,
       },
     ]);
+    assert.equal(promptBuildCalls.length, 1);
+    assert.equal(promptBuildCalls[0].intent, "common_task");
   });
 
   it("detects thread context from the trigger message_id even when event.thread_id is missing", async () => {
@@ -312,7 +324,7 @@ describe("handleTrigger orchestration", () => {
       contextFetcher,
       opencode,
       replySender,
-      detectIntentFn: () => "other",
+      detectIntentFn: () => "common_task",
       buildSessionOptionsFn: () => ({ title: "t", cacheKey: "k", reuse: false }),
       buildIntentPromptFn: (options) => {
         promptBuildCalls.push(options);
@@ -328,6 +340,7 @@ describe("handleTrigger orchestration", () => {
       triggerMessage: "@Cyber Yixiang Wang 我发了什么数字",
     }]);
     assert.equal(promptBuildCalls.length, 1);
+    assert.equal(promptBuildCalls[0].intent, "common_task");
     assert.equal(promptBuildCalls[0].contextResult.scope, "thread");
     assert.equal(promptBuildCalls[0].contextResult.threadId, "omt_real_1");
     assert.deepEqual(replies, [
@@ -400,7 +413,7 @@ describe("handleTrigger orchestration", () => {
       contextFetcher,
       opencode,
       replySender,
-      detectIntentFn: () => "other",
+      detectIntentFn: () => "common_task",
       buildSessionOptionsFn: () => ({ title: "t", cacheKey: "k", reuse: false }),
       buildIntentPromptFn: (options) => {
         promptBuildCalls.push(options);
@@ -409,12 +422,14 @@ describe("handleTrigger orchestration", () => {
     });
 
     assert.equal(promptBuildCalls.length, 1);
+    assert.equal(promptBuildCalls[0].intent, "common_task");
     assert.equal(promptBuildCalls[0].knowledgeBase, knowledgeBase);
     assert.deepEqual(promptBuildCalls[0].knowledgeBase, config.knowledge_base);
   });
 
   it("ignores a duplicate trigger for the same message_id while the first one is still in flight", async () => {
     const replies = [];
+    const sessionOptionsCalls = [];
     let releaseFirstTask;
 
     const event = {
@@ -470,8 +485,11 @@ describe("handleTrigger orchestration", () => {
       contextFetcher,
       opencode,
       replySender,
-      detectIntentFn: () => "other",
-      buildSessionOptionsFn: () => ({ title: "t", cacheKey: "k", reuse: false }),
+      detectIntentFn: () => "common_task",
+      buildSessionOptionsFn: (options) => {
+        sessionOptionsCalls.push(options);
+        return { title: "t", cacheKey: "k", reuse: false };
+      },
       buildIntentPromptFn: () => "prompt",
     });
 
@@ -485,8 +503,11 @@ describe("handleTrigger orchestration", () => {
       contextFetcher,
       opencode,
       replySender,
-      detectIntentFn: () => "other",
-      buildSessionOptionsFn: () => ({ title: "t", cacheKey: "k", reuse: false }),
+      detectIntentFn: () => "common_task",
+      buildSessionOptionsFn: (options) => {
+        sessionOptionsCalls.push(options);
+        return { title: "t", cacheKey: "k", reuse: false };
+      },
       buildIntentPromptFn: () => "prompt",
     });
 
@@ -495,6 +516,15 @@ describe("handleTrigger orchestration", () => {
 
     assert.equal(secondRun, null);
     assert.equal(sendMessageCalls, 1);
+    assert.deepEqual(sessionOptionsCalls, [{
+      intent: "common_task",
+      chatId: "oc_chat1",
+      chatName: "Ops Room",
+      today: new Date().toISOString().slice(0, 10),
+      triggerMessageId: "om_dup_1",
+      triggerContent: "hi",
+      threadId: null,
+    }]);
     assert.deepEqual(replies, [
       {
         text: "Processing your request now. If OpenCode requires approval, the final reply may take a bit longer.",

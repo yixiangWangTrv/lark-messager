@@ -67,9 +67,6 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .field-group{margin-bottom:12px}
 .field-group label{display:block;font-size:12px;color:var(--text-secondary);margin-bottom:4px}
 .note{font-size:12px;color:var(--text-muted);margin-top:4px}
-.keyword-box{background:var(--bg-input);border:1px solid var(--border);border-radius:6px;padding:12px;font-size:12px;line-height:1.8;color:var(--text-secondary)}
-.keyword-box strong{color:var(--text-primary)}
-.keyword-box code{background:var(--bg-elevated);padding:2px 6px;border-radius:3px;color:var(--accent);font-size:11px}
 @keyframes highlight{from{background:var(--accent-bg)}to{background:transparent}}
 .highlight-row{animation:highlight 2s ease-out}
 /* Toggle cards */
@@ -379,14 +376,14 @@ button:disabled{opacity:.6;cursor:not-allowed}
           </label>
         </div>
 
-        <div class="toggle-card" id="cardPuaOther" onclick="togglePua('puaOther')" style="padding:12px 16px">
+        <div class="toggle-card" id="cardPuaCommonTask" onclick="togglePua('puaCommonTask')" style="padding:12px 16px">
           <div class="toggle-icon" style="width:32px;height:32px;font-size:14px">&#x1F4AC;</div>
           <div class="toggle-info">
-            <div class="toggle-title" style="font-size:13px">other</div>
+            <div class="toggle-title" style="font-size:13px">Common Task</div>
             <div class="toggle-desc">General requests get full persistence treatment</div>
           </div>
           <label class="toggle-switch" onclick="event.stopPropagation()">
-            <input type="checkbox" id="puaOther" onchange="onPuaToggleChange()">
+            <input type="checkbox" id="puaCommonTask" onchange="onPuaToggleChange()">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -400,20 +397,37 @@ button:disabled{opacity:.6;cursor:not-allowed}
 
     <div class="card">
       <h3>Intent Routing Keywords</h3>
-      <div class="keyword-box">
-        <p><strong>summary:</strong> <code>summary</code> <code>summarize</code> <code>summarise</code> <code>总结</code> <code>总结上面</code> <code>总结上面的对话</code></p>
-        <p><strong>incident_analysis:</strong> <code>incident</code> <code>error</code> <code>failure</code> <code>failing</code> <code>broken</code> <code>debug</code> <code>investigate</code> <code>排查</code> <code>报错</code> <code>故障</code> <code>异常</code></p>
-        <p><strong>pr_review:</strong> <code>GitHub PR URL pattern</code></p>
-        <p><strong>other:</strong> <code>fallback</code></p>
+      <div class="field-group">
+        <label for="summaryKeywords">Summary Keywords</label>
+        <textarea id="summaryKeywords" placeholder="One keyword per line"></textarea>
+      </div>
+      <div class="field-group">
+        <label for="incidentKeywords">Incident Analysis Keywords</label>
+        <textarea id="incidentKeywords" placeholder="One keyword per line"></textarea>
+      </div>
+      <div class="field-group">
+        <label for="prKeywords">PR Review Keywords</label>
+        <textarea id="prKeywords" placeholder="One keyword per line"></textarea>
+      </div>
+      <div class="field-group">
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:0">
+          <input type="checkbox" id="prUrlToggle" style="width:auto">
+          <span>Use GitHub PR URL Pattern</span>
+        </label>
+      </div>
+      <div class="note" style="margin-bottom:12px"><strong>Common Task:</strong> <code>fallback</code></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <button onclick="saveIntentRouting()">Save Routing Keywords</button>
+        <span class="note" id="routingSaveStatus"></span>
       </div>
     </div>
     <div class="card">
       <h3>Prompt Editor</h3>
       <div class="intent-btns" id="intentBtns">
-        <div class="intent-btn active" data-intent="summary">summary</div>
-        <div class="intent-btn" data-intent="incident_analysis">incident_analysis</div>
-        <div class="intent-btn" data-intent="pr_review">pr_review</div>
-        <div class="intent-btn" data-intent="other">other</div>
+        <div class="intent-btn active" data-intent="summary">Summary</div>
+        <div class="intent-btn" data-intent="incident_analysis">Incident Analysis</div>
+        <div class="intent-btn" data-intent="pr_review">PR Review</div>
+        <div class="intent-btn" data-intent="common_task">Common Task</div>
       </div>
       <div class="field-group">
         <label>system_prefix</label>
@@ -534,6 +548,7 @@ function escJsStr(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\
 
 // State
 let prompts={};
+let intentRouting={};
 let currentIntent="summary";
 let evtSource=null;
 let currentSessionDetailId=null;
@@ -590,6 +605,24 @@ function loadPromptFields(){
   document.getElementById("promptFormat").value=p.response_format||"";
 }
 
+function keywordsToTextareaValue(keywords){
+  return Array.isArray(keywords)?keywords.join("\n"):"";
+}
+
+function parseKeywordsTextarea(id){
+  return document.getElementById(id).value
+    .split(/\r?\n/)
+    .map(v=>v.trim())
+    .filter(Boolean);
+}
+
+function loadIntentRoutingFields(){
+  document.getElementById("summaryKeywords").value=keywordsToTextareaValue(intentRouting.summary?.keywords);
+  document.getElementById("incidentKeywords").value=keywordsToTextareaValue(intentRouting.incident_analysis?.keywords);
+  document.getElementById("prKeywords").value=keywordsToTextareaValue(intentRouting.pr_review?.keywords);
+  document.getElementById("prUrlToggle").checked=!!intentRouting.pr_review?.use_github_pr_url;
+}
+
 // API helpers
 async function api(path,opts){
   const res=await fetch(path,opts);
@@ -636,6 +669,8 @@ async function init(){
   try{
     const cfg=await api("/api/config");
     if(cfg.dashboard&&cfg.dashboard.port)document.getElementById("settingsPort").value=cfg.dashboard.port;
+    intentRouting=cfg.intent_routing||{};
+    loadIntentRoutingFields();
     // Sync theme from server if no local preference
     if(!localStorage.getItem("oncall-bot-theme")&&cfg.dashboard&&cfg.dashboard.theme){
       setTheme(cfg.dashboard.theme);
@@ -1351,6 +1386,32 @@ async function savePrompts(){
   }catch(e){alert("Failed: "+e.message)}
 }
 
+async function saveIntentRouting(){
+  const statusEl=document.getElementById("routingSaveStatus");
+  statusEl.textContent="Saving...";
+  statusEl.style.color="var(--text-muted)";
+  try{
+    const payload={
+      intent_routing:{
+        summary:{keywords:parseKeywordsTextarea("summaryKeywords")},
+        incident_analysis:{keywords:parseKeywordsTextarea("incidentKeywords")},
+        pr_review:{
+          keywords:parseKeywordsTextarea("prKeywords"),
+          use_github_pr_url:document.getElementById("prUrlToggle").checked,
+        },
+      },
+    };
+    const cfg=await api("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    intentRouting=cfg.intent_routing||payload.intent_routing;
+    loadIntentRoutingFields();
+    statusEl.textContent="Saved.";
+    statusEl.style.color="var(--success)";
+  }catch(e){
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }
+}
+
 // Language save
 const noticeI18n={
   en:{
@@ -1723,7 +1784,7 @@ function onPuaToggleChange(){
     ["puaSummary","cardPuaSummary"],
     ["puaIncident","cardPuaIncident"],
     ["puaPr","cardPuaPr"],
-    ["puaOther","cardPuaOther"],
+    ["puaCommonTask","cardPuaCommonTask"],
   ];
   for(const [inputId,cardId] of intentPairs){
     const checked=document.getElementById(inputId).checked;
@@ -1740,7 +1801,7 @@ async function loadPuaMode(){
     document.getElementById("puaSummary").checked=!!pua.intents?.summary;
     document.getElementById("puaIncident").checked=!!pua.intents?.incident_analysis;
     document.getElementById("puaPr").checked=!!pua.intents?.pr_review;
-    document.getElementById("puaOther").checked=!!pua.intents?.other;
+    document.getElementById("puaCommonTask").checked=!!pua.intents?.common_task;
     onPuaToggleChange();
   }catch(e){console.error("pua-mode",e)}
 }
@@ -1752,7 +1813,7 @@ async function savePuaMode(){
       summary:document.getElementById("puaSummary").checked,
       incident_analysis:document.getElementById("puaIncident").checked,
       pr_review:document.getElementById("puaPr").checked,
-      other:document.getElementById("puaOther").checked,
+      common_task:document.getElementById("puaCommonTask").checked,
     },
   };
   try{

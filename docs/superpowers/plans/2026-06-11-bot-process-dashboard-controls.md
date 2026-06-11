@@ -31,6 +31,12 @@
 - Modify: `lib/single-instance-lock.js`
 - Test: `test/single-instance.test.js`
 
+Note:
+- This task also finalizes lock-reader semantics so the dashboard helper cannot report or preserve a false-positive active bot row when the lock belongs to the current process instance or a stale/reused PID.
+
+Note:
+- This task also hardens lock ownership semantics enough to keep the metadata change safe. Persisting richer lock metadata without fixing stale-lock takeover and release ownership would preserve a known race/ownership bug in the same code path.
+
 - [ ] **Step 1: Write the failing metadata test**
 
 Add this test to `test/single-instance.test.js`:
@@ -146,7 +152,155 @@ export async function acquireSingleInstanceLock({
 Run: `node --test test/single-instance.test.js`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Add regression coverage for stale-lock takeover and release ownership**
+
+Add these tests to `test/single-instance.test.js`:
+
+```js
+  it("takes over a stale lock when the recorded pid is no longer alive", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "oncall-bot-lock-"));
+    const lockPath = join(tempDir, "oncall-bot.lock");
+    writeFileSync(lockPath, JSON.stringify({
+      pid: 99999,
+      startedAt: 1718102400000,
+      cwd: "/tmp/stale",
+      execPath: "/usr/bin/node",
+      argv: ["stale.js"],
+    }));
+
+    const lock = await acquireSingleInstanceLock({
+      lockPath,
+      pid: 12345,
+      startedAt: 1718102500000,
+      cwd: "/tmp/live",
+      execPath: "/opt/homebrew/bin/node",
+      argv: ["live.js"],
+      processExistsFn: () => false,
+    });
+
+    const payload = JSON.parse(readFileSync(lockPath, "utf-8"));
+    assert.equal(payload.pid, 12345);
+    assert.equal(payload.startedAt, 1718102500000);
+    lock.release();
+  });
+```
+
+```js
+  it("does not release a lock file that has been replaced by another owner", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "oncall-bot-lock-"));
+    const lockPath = join(tempDir, "oncall-bot.lock");
+
+    const lock = await acquireSingleInstanceLock({
+      lockPath,
+      pid: 12345,
+      startedAt: 1718102400000,
+      cwd: "/tmp/owner-a",
+      execPath: "/opt/homebrew/bin/node",
+      argv: ["owner-a.js"],
+    });
+
+    writeFileSync(lockPath, JSON.stringify({
+      pid: 54321,
+      startedAt: 1718102600000,
+      cwd: "/tmp/owner-b",
+      execPath: "/usr/bin/node",
+      argv: ["owner-b.js"],
+    }));
+
+    lock.release();
+
+    const payload = JSON.parse(readFileSync(lockPath, "utf-8"));
+    assert.equal(payload.pid, 54321);
+    assert.equal(payload.startedAt, 1718102600000);
+  });
+```
+
+- [ ] **Step 6: Make stale-lock takeover and release ownership snapshot-safe**
+
+Update `lib/single-instance-lock.js` like this:
+
+```js
+import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
+
+function processExists(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return false;
+
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return err?.code !== "ESRCH";
+  }
+}
+
+export function readLockFile(lockPath) {
+  try {
+    return JSON.parse(readFileSync(lockPath, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function lockMatches(existing, expected) {
+  return existing?.pid === expected?.pid && existing?.startedAt === expected?.startedAt;
+}
+
+function removeLockFileIfUnchanged(lockPath, expected) {
+  const existing = readLockFile(lockPath);
+  if (!lockMatches(existing, expected)) return false;
+
+  try {
+    unlinkSync(lockPath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function acquireSingleInstanceLock({
+  lockPath,
+  pid = process.pid,
+  processExistsFn = processExists,
+  startedAt = Date.now(),
+  cwd = process.cwd(),
+  execPath = process.execPath,
+  argv = process.argv.slice(1),
+} = {}) {
+  const owner = { pid, startedAt, cwd, execPath, argv };
+  const payload = JSON.stringify(owner);
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      writeFileSync(lockPath, payload, { flag: "wx" });
+
+      return {
+        lockPath,
+        release() {
+          removeLockFileIfUnchanged(lockPath, owner);
+        },
+      };
+    } catch (err) {
+      if (err?.code !== "EEXIST") throw err;
+
+      const existing = readLockFile(lockPath);
+      if (existing?.pid && existing.pid !== pid && processExistsFn(existing.pid)) {
+        throw new Error(`Another oncall-bot process is already running (pid ${existing.pid})`);
+      }
+
+      removeLockFileIfUnchanged(lockPath, existing);
+    }
+  }
+
+  throw new Error(`Failed to acquire single instance lock at ${lockPath}`);
+}
+```
+
+- [ ] **Step 7: Run test to verify it passes**
+
+Run: `node --test test/single-instance.test.js`
+Expected: PASS
+
+- [ ] **Step 8: Commit**
 
 ```bash
 git add lib/single-instance-lock.js test/single-instance.test.js
@@ -238,7 +392,126 @@ export function getActiveBotProcess({
 Run: `node --test test/single-instance.test.js`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 5: Add regression coverage for same-owner reacquire and stale false-positive reads**
+
+Add these tests to `test/single-instance.test.js`:
+
+```js
+  it("reuses the existing lock when the same owner reacquires it", async () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "oncall-bot-lock-"));
+    const lockPath = join(tempDir, "oncall-bot.lock");
+
+    const first = await acquireSingleInstanceLock({
+      lockPath,
+      pid: 12345,
+      startedAt: 1718102400000,
+    });
+    const second = await acquireSingleInstanceLock({
+      lockPath,
+      pid: 12345,
+      startedAt: 1718102400000,
+    });
+
+    assert.equal(typeof first.release, "function");
+    assert.equal(typeof second.release, "function");
+    assert.deepEqual(JSON.parse(readFileSync(lockPath, "utf-8")).pid, 12345);
+
+    second.release();
+    assert.equal(readFileSync(lockPath, "utf-8").includes("12345"), true);
+
+    first.release();
+  });
+```
+
+```js
+  it("returns null when processExistsFn says the stored pid is not the active bot", () => {
+    const tempDir = mkdtempSync(join(tmpdir(), "oncall-bot-lock-"));
+    const lockPath = join(tempDir, "oncall-bot.lock");
+    writeFileSync(lockPath, JSON.stringify({
+      pid: 71371,
+      startedAt: 1718102400000,
+      cwd: "/tmp/oncall-bot",
+      execPath: "/opt/homebrew/bin/node",
+      argv: ["/tmp/oncall-bot/oncall-bot.js"],
+    }));
+
+    assert.equal(
+      getActiveBotProcess({
+        lockPath,
+        processExistsFn: () => false,
+      }),
+      null,
+    );
+  });
+```
+
+- [ ] **Step 6: Make same-owner reacquire return the existing ownership handle instead of deleting and recreating the lock**
+
+Update `lib/single-instance-lock.js` in `acquireSingleInstanceLock()` like this:
+
+```js
+      const existing = readLockFile(lockPath);
+      if (sameLockOwner(existing, lockOwner)) {
+        return {
+          lockPath,
+          release() {
+            removeLockFileIfUnchanged(lockPath, lockOwner);
+          },
+        };
+      }
+
+      if (existing?.pid && processExistsFn(existing.pid)) {
+        throw new Error(`Another oncall-bot process is already running (pid ${existing.pid})`);
+      }
+```
+
+This keeps reacquire idempotent for the same owner and avoids deleting/recreating the file in that case.
+
+Important behavior:
+
+- same-owner reacquire must not allow a later reacquired handle to remove the lock before the original owner is logically done with it
+- the simplest acceptable implementation is reference-counted release behavior keyed by the same owner tuple within the current process
+
+- [ ] **Step 7: Ensure the active bot helper only returns entries for a live lock payload**
+
+Keep `getActiveBotProcess()` conservative:
+
+```js
+export function getActiveBotProcess({
+  lockPath,
+  processExistsFn = processExists,
+} = {}) {
+  const existing = readLockFile(lockPath);
+  if (!existing?.pid || !processExistsFn(existing.pid)) {
+    return null;
+  }
+
+  return {
+    id: `bot-${existing.pid}`,
+    kind: "bot",
+    source: "local",
+    label: "oncall-bot",
+    pid: existing.pid,
+    startedAt: existing.startedAt,
+    projectDir: existing.cwd || null,
+    port: null,
+    status: "running",
+    execPath: existing.execPath || null,
+    argv: Array.isArray(existing.argv) ? existing.argv : null,
+  };
+}
+```
+
+This helper must return `null` if liveness cannot be confirmed.
+
+Missing launch metadata must not hide a live bot row at this stage. For Task 2, the helper should still return the bot row when PID liveness is confirmed, with nullable fields for incomplete metadata. Strict restart validation belongs in Task 5.
+
+- [ ] **Step 8: Run test to verify it passes**
+
+Run: `node --test test/single-instance.test.js`
+Expected: PASS
+
+- [ ] **Step 9: Commit**
 
 ```bash
 git add lib/single-instance-lock.js test/single-instance.test.js

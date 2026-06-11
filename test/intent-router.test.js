@@ -22,10 +22,23 @@ const promptConfig = {
     task_instructions: "Review the PR. Do not use Datadog unless explicitly requested.",
     response_format: "List risks and next actions.",
   },
-  other: {
+  common_task: {
     system_prefix: "You answer the user's chat request.",
     task_instructions: "Answer directly from context. No Datadog unless explicitly asked.",
     response_format: "Keep it concise.",
+  },
+};
+
+const routingConfig = {
+  summary: {
+    keywords: ["summary", "summarize", "summarise", "总结", "总结上面", "总结上面的对话"],
+  },
+  incident_analysis: {
+    keywords: ["incident", "error", "failure", "failing", "broken", "debug", "investigate", "排查", "报错", "故障", "异常"],
+  },
+  pr_review: {
+    keywords: ["review pr", "code review"],
+    use_github_pr_url: true,
   },
 };
 
@@ -54,14 +67,14 @@ describe("intent routing", () => {
     const event = { content: "can you take a look?" };
     const contextLines = ["[06/09 15:07] user: payment-service is failing with 500 errors"];
 
-    assert.equal(detectIntent(event, contextLines), "other");
+    assert.equal(detectIntent(event, contextLines), "common_task");
   });
 
-  it("keeps a neutral trigger as other even when context contains incident keywords", () => {
+  it("keeps a neutral trigger as common_task even when context contains incident keywords", () => {
     const event = { content: "hi" };
     const contextLines = ["[06/09 15:07] user: payment-service is failing with 500 errors"];
 
-    assert.equal(detectIntent(event, contextLines), "other");
+    assert.equal(detectIntent(event, contextLines), "common_task");
   });
 
   it("still detects incident_analysis when trigger text itself asks for investigation", () => {
@@ -71,10 +84,34 @@ describe("intent routing", () => {
     assert.equal(detectIntent(event, contextLines), "incident_analysis");
   });
 
-  it("falls back to other for generic requests", () => {
+  it("falls back to common_task for generic requests", () => {
     const event = { content: "把上面的内容翻译成英文" };
 
-    assert.equal(detectIntent(event, []), "other");
+    assert.equal(detectIntent(event, []), "common_task");
+  });
+
+  it("uses config-backed routing keywords from the third detectIntent argument", () => {
+    const event = { content: "please triage this flaky rollout" };
+    const customRoutingConfig = {
+      ...routingConfig,
+      incident_analysis: {
+        keywords: ["rollout", "triage"],
+      },
+    };
+
+    assert.equal(detectIntent(event, [], customRoutingConfig), "incident_analysis");
+  });
+
+  it("optionally detects pr_review from configured keywords", () => {
+    const event = { content: "please do a code review for this change" };
+
+    assert.equal(detectIntent(event, [], routingConfig), "pr_review");
+  });
+
+  it("prioritizes configured pr_review keywords over incident keywords when both match", () => {
+    const event = { content: "please do a code review of this error handling change" };
+
+    assert.equal(detectIntent(event, [], routingConfig), "pr_review");
   });
 
   it("builds a summary prompt without Datadog instructions", () => {
@@ -104,7 +141,7 @@ describe("intent routing", () => {
 
   it("builds a new-session prompt with trigger metadata and context scope", () => {
     const prompt = buildIntentPrompt({
-      intent: "other",
+      intent: "common_task",
       promptConfig,
       event: {
         content: "hi",
@@ -135,9 +172,34 @@ describe("intent routing", () => {
     assert.match(prompt, /is_thread_message: true/);
     assert.match(prompt, /session_state: new/);
     assert.match(prompt, /context_scope: thread/);
-    assert.match(prompt, /intent: other/);
+    assert.match(prompt, /intent: common_task/);
     assert.match(prompt, /Context:\n\[06\/09 15:07\] user: hi there/);
     assert.match(prompt, /User request:\nhi$/);
+  });
+
+  it("builds a common_task prompt from the fallback prompt config", () => {
+    const prompt = buildIntentPrompt({
+      intent: "common_task",
+      promptConfig,
+      event: {
+        content: "translate this",
+        sender_id: "ou_common",
+        chat_id: "oc_common",
+        message_id: "om_common",
+      },
+      contextResult: {
+        messages: ["[06/09 15:10] user: 把上面的内容翻译成英文"],
+        scope: "chat",
+        threadId: null,
+        fetchFailed: false,
+      },
+      sessionState: "new",
+    });
+
+    assert.match(prompt, /^You answer the user's chat request\./);
+    assert.match(prompt, /Answer directly from context\. No Datadog unless explicitly asked\./);
+    assert.match(prompt, /Keep it concise\./);
+    assert.doesNotMatch(prompt, /Use Datadog to investigate incidents\./);
   });
 
   it("builds an existing-session continuation prompt without the full initial framing", () => {
@@ -178,7 +240,7 @@ describe("intent routing", () => {
 
   it("injects knowledge base context before chat context", () => {
     const prompt = buildIntentPrompt({
-      intent: "other",
+      intent: "common_task",
       promptConfig,
       event: {
         content: "answer with the docs",
@@ -225,7 +287,7 @@ describe("intent routing", () => {
 
   it("injects nothing when knowledge base is disabled", () => {
     const prompt = buildIntentPrompt({
-      intent: "other",
+      intent: "common_task",
       promptConfig,
       event: {
         content: "answer directly",
@@ -313,9 +375,9 @@ describe("intent routing", () => {
     });
   });
 
-  it("reuses session for same thread when threadId is provided (other intent)", () => {
+  it("reuses session for same thread when threadId is provided (common_task intent)", () => {
     const options = buildSessionOptions({
-      intent: "other",
+      intent: "common_task",
       chatId: "oc_chat1",
       chatName: "Ops Room",
       today: "2026-06-09",
@@ -325,15 +387,15 @@ describe("intent routing", () => {
     });
 
     assert.deepEqual(options, {
-      title: "Ops Room-other-2026-06-09-read_abc",
-      cacheKey: "other:oc_chat1:omt_thread_abc",
+      title: "Ops Room-common-task-2026-06-09-read_abc",
+      cacheKey: "common_task:oc_chat1:omt_thread_abc",
       reuse: true,
     });
   });
 
-  it("creates fresh session when no threadId (other intent, top-level message)", () => {
+  it("creates fresh session when no threadId (common_task intent, top-level message)", () => {
     const options = buildSessionOptions({
-      intent: "other",
+      intent: "common_task",
       chatId: "oc_chat1",
       chatName: "Ops Room",
       today: "2026-06-09",
@@ -343,8 +405,8 @@ describe("intent routing", () => {
     });
 
     assert.deepEqual(options, {
-      title: "Ops Room-other-2026-06-09",
-      cacheKey: "other:oc_chat1:om_300",
+      title: "Ops Room-common-task-2026-06-09",
+      cacheKey: "common_task:oc_chat1:om_300",
       reuse: false,
     });
   });
