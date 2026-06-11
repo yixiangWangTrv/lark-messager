@@ -18,7 +18,7 @@ If this project helps you, please give it a GitHub star🥺.
 - Fetch recent chat or thread context before sending work to OpenCode.
 - Route requests into summary, incident analysis, PR review, or general task flows.
 - Reuse or create OpenCode sessions automatically.
-- Show a local dashboard for sessions, prompts, trigger modes, PUA mode, server binding, knowledge base items, and style distillation.
+- Show a local dashboard for sessions, prompts, trigger modes, performance mode (Ultimate AI Machine), server binding, knowledge base items, and style distillation.
 - Support a lightweight knowledge base configuration stored in `oncall-bot.config.json`.
 - Support style distillation profiles and active style switching.
 - Global todo workflow: create todos from any session row, one-click AI summary for title and description, status tracking (open/in_progress/blocked/completed), comments with optional chat-session mirroring, and lazy-created dedicated todo chat sessions.
@@ -100,7 +100,7 @@ The bot is configured through `oncall-bot.config.json`. The main top-level secti
 - `dashboard`: local dashboard port and language
 - `knowledge_base`: optional local knowledge items
 - `prompt`: prompt templates by intent
-- `pua`: PUA-mode enablement by intent
+- `pua`: performance mode (Ultimate AI Machine) enablement by intent
 
 ### Dashboard
 
@@ -109,7 +109,7 @@ When `dashboard.enabled` is `true`, the bot starts a local dashboard server and 
 - viewing live sessions
 - inspecting session messages
 - editing prompts and trigger modes
-- updating PUA mode settings
+- updating performance mode (Ultimate AI Machine) settings
 - managing knowledge base items
 - managing or binding OpenCode server processes
 - running style distillation workflows and choosing an active style
@@ -176,7 +176,7 @@ This project is licensed under the MIT License. See `LICENSE` for the full text.
 - 在请求发送到 OpenCode 之前抓取最近的群聊或线程上下文。
 - 将请求路由到总结、故障分析、PR Review 或通用任务流程。
 - 自动复用或创建 OpenCode 会话。
-- 提供本地 dashboard，用于查看会话、编辑 prompts、调整 trigger modes、切换 PUA 模式、管理知识库、绑定 OpenCode 服务以及使用风格蒸馏能力。
+- 提供本地 dashboard，用于查看会话、编辑 prompts、调整 trigger modes、切换 performance 模式（Ultimate AI Machine）、管理知识库、绑定 OpenCode 服务以及使用风格蒸馏能力。
 - 支持在 `oncall-bot.config.json` 中维护轻量级 knowledge base 配置。
 - 支持风格蒸馏档案和当前风格切换。
 - 全局 Todo 工作流：从任意会话行创建 todo，一键 AI 总结生成标题和描述，支持状态跟踪（open/in_progress/blocked/completed）、评论（可同步到 chat session）以及按需懒创建专属 todo chat session。
@@ -258,7 +258,7 @@ node oncall-bot.js --config oncall-bot.config.local.json
 - `dashboard`：本地 dashboard 端口和语言
 - `knowledge_base`：可选的本地知识条目
 - `prompt`：按意图划分的 prompt 模板
-- `pua`：按意图启用的 PUA 模式
+- `pua`：按意图启用的 performance 模式（Ultimate AI Machine）
 
 ### Dashboard
 
@@ -267,7 +267,7 @@ node oncall-bot.js --config oncall-bot.config.local.json
 - 查看实时会话
 - 查看会话消息
 - 编辑 prompts 和 trigger modes
-- 更新 PUA 模式配置
+- 更新 performance 模式（Ultimate AI Machine）配置
 - 管理 knowledge base 条目
 - 管理或绑定 OpenCode 服务进程
 - 运行风格蒸馏流程并切换当前激活风格
@@ -334,7 +334,7 @@ Kalau project ini membantu, mohon bantu beri GitHub star.
 - Mengambil konteks chat atau thread terbaru sebelum mengirim pekerjaan ke OpenCode.
 - Merutekan permintaan ke alur ringkasan, analisis insiden, PR review, atau tugas umum.
 - Menggunakan ulang atau membuat sesi OpenCode secara otomatis.
-- Menyediakan dashboard lokal untuk sesi, prompt, trigger modes, mode PUA, knowledge base, binding server OpenCode, dan distilasi gaya.
+- Menyediakan dashboard lokal untuk sesi, prompt, trigger modes, mode performance (Ultimate AI Machine), knowledge base, binding server OpenCode, dan distilasi gaya.
 - Mendukung konfigurasi knowledge base ringan di `oncall-bot.config.json`.
 - Mendukung profil distilasi gaya dan pergantian gaya aktif.
 - Workflow todo global: buat todo dari baris sesi mana saja, ringkasan AI satu klik untuk judul dan deskripsi, pelacakan status (open/in_progress/blocked/completed), komentar dengan sinkronisasi opsional ke chat session, dan pembuatan chat session todo khusus secara lazy.
@@ -416,7 +416,7 @@ Bot dikonfigurasi melalui `oncall-bot.config.json`. Bagian top-level utamanya ad
 - `dashboard`: port dashboard lokal dan bahasa
 - `knowledge_base`: item knowledge base opsional
 - `prompt`: template prompt per intent
-- `pua`: pengaktifan mode PUA per intent
+- `pua`: pengaktifan mode performance (Ultimate AI Machine) per intent
 
 ### Dashboard
 
@@ -425,7 +425,7 @@ Saat `dashboard.enabled` bernilai `true`, bot akan menjalankan dashboard lokal d
 - melihat sesi aktif
 - memeriksa pesan dalam sesi
 - mengedit prompt dan trigger modes
-- memperbarui pengaturan mode PUA
+- memperbarui pengaturan mode performance (Ultimate AI Machine)
 - mengelola item knowledge base
 - mengelola atau melakukan binding ke proses server OpenCode
 - menjalankan workflow distilasi gaya dan memilih gaya aktif
