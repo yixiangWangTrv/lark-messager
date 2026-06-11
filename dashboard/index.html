@@ -152,8 +152,8 @@ button:disabled{opacity:.6;cursor:not-allowed}
 
 <div class="tabs">
   <div class="tab active" data-tab="sessions">Sessions</div>
-  <div class="tab" data-tab="distill">Distill</div>
   <div class="tab" data-tab="knowledge-base">Knowledge Base</div>
+  <div class="tab" data-tab="distill">Distill</div>
   <div class="tab" data-tab="servers">Servers</div>
   <div class="tab" data-tab="prompts">Prompts</div>
   <div class="tab" data-tab="settings">Settings</div>
@@ -525,6 +525,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
 <script>
 // XSS escape
 function esc(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML}
+function escAttr(s){return String(s??"").replace(/&/g,"&amp;").replace(/\"/g,"&quot;").replace(/'/g,"&#39;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 function escJsStr(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"\\r").replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 
 // State
@@ -1138,13 +1139,13 @@ function renderKnowledgeBaseSourceFields(){
   let html="";
 
   if(type==="local_file"){
-    html=`<div class="field-group"><label for="kbSourcePath">Local File Path</label><input type="text" id="kbSourcePath" placeholder="/path/to/file.txt" value="${esc(values.path)}"></div>`;
+    html=`<div class="field-group"><label for="kbSourcePath">Local File Path</label><input type="text" id="kbSourcePath" placeholder="/path/to/file.txt" value="${escAttr(values.path)}"></div>`;
   }else if(type==="project_name"){
-    html=`<div class="field-group"><label for="kbSourceProjectName">Project Name</label><input type="text" id="kbSourceProjectName" placeholder="my-project" value="${esc(values.project_name)}"></div>`;
+    html=`<div class="field-group"><label for="kbSourceProjectName">Project Name</label><input type="text" id="kbSourceProjectName" placeholder="my-project" value="${escAttr(values.project_name)}"></div>`;
   }else if(type==="github_url"){
-    html=`<div class="field-group"><label for="kbSourceUrl">GitHub URL</label><input type="text" id="kbSourceUrl" placeholder="https://github.com/org/repo/blob/main/README.md" value="${esc(values.url)}"></div>`;
+    html=`<div class="field-group"><label for="kbSourceUrl">GitHub URL</label><input type="text" id="kbSourceUrl" placeholder="https://github.com/org/repo/blob/main/README.md" value="${escAttr(values.url)}"></div>`;
   }else if(type==="lark_doc"){
-    html=`<div class="field-group"><label for="kbSourceUrl">Lark Doc URL</label><input type="text" id="kbSourceUrl" placeholder="https://.../docx/..." value="${esc(values.url)}"></div>`;
+    html=`<div class="field-group"><label for="kbSourceUrl">Lark Doc URL</label><input type="text" id="kbSourceUrl" placeholder="https://.../docx/..." value="${escAttr(values.url)}"></div>`;
   }else if(type==="free_text"){
     html=`<div class="field-group"><label for="kbContentText">Free Text</label><textarea id="kbContentText" placeholder="Paste the text you want the bot to use">${esc(values.text)}</textarea></div>`;
   }
