@@ -145,8 +145,19 @@ describe("knowledge-base helper", () => {
           description: "desc",
           enabled: true,
           source_type: "free_text",
+          source_summary: "inline note",
           source: {},
           content: { mode: "inline_text", text: "abc" },
+          updated_at: "2026-06-11T00:00:00.000Z",
+        },
+        {
+          id: "3",
+          name: "Reference Item",
+          enabled: true,
+          source_type: "github_url",
+          source_summary: "https://github.com/acme/api",
+          source: { url: "https://github.com/acme/api" },
+          content: { mode: "reference_only", text: "" },
           updated_at: "2026-06-11T00:00:00.000Z",
         },
         {
@@ -162,8 +173,24 @@ describe("knowledge-base helper", () => {
       ],
     });
 
-    assert.match(section, /Knowledge base context:/);
-    assert.match(section, /Enabled Item/);
+    assert.equal(
+      section,
+      [
+        "Knowledge base context:",
+        "",
+        "[1] Enabled Item",
+        "description: desc",
+        "source_type: free_text",
+        "source_summary: inline note",
+        "content:",
+        "abc",
+        "",
+        "[2] Reference Item",
+        "source_type: github_url",
+        "source_summary: https://github.com/acme/api",
+        "reference_only: true",
+      ].join("\n"),
+    );
     assert.doesNotMatch(section, /Disabled Item/);
   });
 
@@ -189,7 +216,28 @@ describe("knowledge-base helper", () => {
       ],
     });
 
+    assert.match(section, /^Knowledge base context:\n\n\[1\] Long Item\n/m);
+    assert.match(section, /\ncontent:\n/);
     assert.match(section, /\[truncated\]/);
+  });
+
+  it("renders multiline inline text under content", () => {
+    const section = buildKnowledgeBasePromptSection({
+      enabled: true,
+      items: [
+        {
+          id: "1",
+          name: "Runbook",
+          enabled: true,
+          source_type: "free_text",
+          source: {},
+          content: { mode: "inline_text", text: "line one\nline two" },
+          updated_at: "2026-06-11T00:00:00.000Z",
+        },
+      ],
+    });
+
+    assert.equal(section, ["Knowledge base context:", "", "[1] Runbook", "source_type: free_text", "content:", "line one", "line two"].join("\n"));
   });
 
   it("returns empty string when global knowledge base is enabled with no enabled items", () => {
