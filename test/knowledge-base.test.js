@@ -60,6 +60,32 @@ describe("knowledge-base helper", () => {
     assert.equal(item.source.url, "https://github.com/acme/api");
   });
 
+  it("creates a project_name item as reference_only", () => {
+    const item = createKnowledgeBaseItem({
+      name: "Project",
+      description: "linked project",
+      source_type: "project_name",
+      source: { project_name: "acme-api" },
+    });
+
+    assert.equal(item.content.mode, "reference_only");
+    assert.equal(item.content.text, "");
+    assert.equal(item.source.project_name, "acme-api");
+  });
+
+  it("creates a lark_doc item as reference_only", () => {
+    const item = createKnowledgeBaseItem({
+      name: "Design Doc",
+      description: "external doc",
+      source_type: "lark_doc",
+      source: { url: "https://example.com/doc/123" },
+    });
+
+    assert.equal(item.content.mode, "reference_only");
+    assert.equal(item.content.text, "");
+    assert.equal(item.source.url, "https://example.com/doc/123");
+  });
+
   it("refreshes local_file item from disk", () => {
     const dir = mkdtempSync(join(tmpdir(), "kb-refresh-"));
     const file = join(dir, "notes.txt");
@@ -86,6 +112,27 @@ describe("knowledge-base helper", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("refreshes non-local-file item by only updating updated_at", () => {
+    const item = createKnowledgeBaseItem({
+      id: "runbook-id",
+      name: "Runbook",
+      description: "manual note",
+      source_type: "free_text",
+      content: { text: "keep this content" },
+    });
+    const staleItem = {
+      ...item,
+      updated_at: "2000-01-01T00:00:00.000Z",
+    };
+
+    const refreshed = refreshKnowledgeBaseItem(staleItem);
+
+    assert.equal(refreshed.id, staleItem.id);
+    assert.deepEqual(refreshed.content, staleItem.content);
+    assert.notEqual(refreshed.updated_at, staleItem.updated_at);
+    assert.ok(Date.parse(refreshed.updated_at) > Date.parse(staleItem.updated_at));
   });
 
   it("builds prompt section from enabled items only", () => {
@@ -122,6 +169,46 @@ describe("knowledge-base helper", () => {
 
   it("returns empty string when global knowledge base is disabled", () => {
     const section = buildKnowledgeBasePromptSection({ enabled: false, items: [] });
+    assert.equal(section, "");
+  });
+
+  it("appends [truncated] when inline text exceeds prompt limit", () => {
+    const section = buildKnowledgeBasePromptSection({
+      enabled: true,
+      items: [
+        {
+          id: "1",
+          name: "Long Item",
+          description: "desc",
+          enabled: true,
+          source_type: "free_text",
+          source: {},
+          content: { mode: "inline_text", text: "a".repeat(2001) },
+          updated_at: "2026-06-11T00:00:00.000Z",
+        },
+      ],
+    });
+
+    assert.match(section, /\[truncated\]/);
+  });
+
+  it("returns empty string when global knowledge base is enabled with no enabled items", () => {
+    const section = buildKnowledgeBasePromptSection({
+      enabled: true,
+      items: [
+        {
+          id: "1",
+          name: "Disabled Item",
+          description: "desc",
+          enabled: false,
+          source_type: "free_text",
+          source: {},
+          content: { mode: "inline_text", text: "abc" },
+          updated_at: "2026-06-11T00:00:00.000Z",
+        },
+      ],
+    });
+
     assert.equal(section, "");
   });
 });
