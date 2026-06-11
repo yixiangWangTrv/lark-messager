@@ -122,6 +122,38 @@ describe("DashboardServer", () => {
     assert.equal(updatedItem.enabled, false);
   });
 
+  it("PUT /api/knowledge-base/items/:id preserves local_file content on metadata-only updates", async () => {
+    writeFileSync(localFilePath, "disk changed but update should not reread");
+
+    const res = await fetch(`${baseUrl}/api/knowledge-base/items/kb-local-file`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Renamed local file item",
+        description: "metadata-only update",
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.id, "kb-local-file");
+    assert.equal(data.name, "Renamed local file item");
+    assert.equal(data.description, "metadata-only update");
+    assert.equal(data.source_type, "local_file");
+    assert.equal(data.source.path, localFilePath);
+    assert.equal(data.content.mode, "inline_text");
+    assert.equal(data.content.text, "stale file body");
+    assert.equal(data.source_summary, localFilePath);
+
+    const getRes = await fetch(`${baseUrl}/api/knowledge-base`);
+    const knowledgeBase = await getRes.json();
+    const updatedItem = knowledgeBase.items.find((item) => item.id === "kb-local-file");
+    assert.ok(updatedItem);
+    assert.equal(updatedItem.name, "Renamed local file item");
+    assert.equal(updatedItem.description, "metadata-only update");
+    assert.equal(updatedItem.content.text, "stale file body");
+  });
+
   it("POST /api/knowledge-base/items/:id/refresh refreshes an existing local_file item", async () => {
     writeFileSync(localFilePath, "refreshed local file body");
 

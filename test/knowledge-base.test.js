@@ -7,6 +7,7 @@ import {
   buildKnowledgeBasePromptSection,
   createKnowledgeBaseItem,
   refreshKnowledgeBaseItem,
+  updateKnowledgeBaseItem,
 } from "../lib/knowledge-base.js";
 
 describe("knowledge-base helper", () => {
@@ -268,6 +269,42 @@ describe("knowledge-base helper", () => {
     assert.deepEqual(refreshed.content, staleItem.content);
     assert.notEqual(refreshed.updated_at, staleItem.updated_at);
     assert.ok(Date.parse(refreshed.updated_at) > Date.parse(staleItem.updated_at));
+  });
+
+  it("preserves existing local_file content on metadata-only updates", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kb-update-"));
+    const file = join(dir, "notes.txt");
+    writeFileSync(file, "version one");
+
+    try {
+      const existingItem = createKnowledgeBaseItem({
+        id: "notes-id",
+        name: "Notes",
+        description: "local file",
+        source_type: "local_file",
+        source: { path: file },
+      });
+
+      writeFileSync(file, "version two");
+
+      const staleItem = {
+        ...existingItem,
+        updated_at: "2000-01-01T00:00:00.000Z",
+      };
+
+      const updatedItem = updateKnowledgeBaseItem(staleItem, {
+        ...staleItem,
+        name: "Renamed Notes",
+        description: "metadata only",
+      });
+
+      assert.equal(updatedItem.name, "Renamed Notes");
+      assert.equal(updatedItem.description, "metadata only");
+      assert.equal(updatedItem.content.text, existingItem.content.text);
+      assert.notEqual(updatedItem.updated_at, staleItem.updated_at);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it("builds prompt section from enabled items only", () => {
