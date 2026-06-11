@@ -168,6 +168,11 @@ This project is licensed under the MIT License. See `LICENSE` for the full text.
 - `test/`: automated tests
 - `docs/superpowers/`: design specs and implementation plans
 
+### Related Skills
+
+- [performance skill (Ultimate AI Machine)](https://github.com/tanweai/pua) — required for Performance Mode; enables aggressive persistence and self-verification behavior in the AI agent.
+- [cross-session-chat](https://github.com/yixiangWangTrv/cross-session-chat) — required for the global todo workflow; allows the AI agent to create and manage todos across OpenCode sessions.
+
 ## 中文
 
 如果这个项目对你有帮助，欢迎给仓库点个 Star。（其实是求你了🥺，我是互联网乞丐）
@@ -332,6 +337,11 @@ git checkout -b feat/my-change
 - `test/`：自动化测试
 - `docs/superpowers/`：设计文档和实现计划
 
+### 相关 Skill
+
+- [performance skill（Ultimate AI Machine）](https://github.com/tanweai/pua) — Performance 模式的依赖，为 AI Agent 提供高强度持久性和自我验证能力。
+- [cross-session-chat](https://github.com/yixiangWangTrv/cross-session-chat) — 全局 Todo 工作流的依赖，让 AI Agent 能够跨 OpenCode session 创建和管理 Todo。
+
 ## Bahasa Indonesia
 
 Kalau project ini membantu, mohon bantu beri GitHub star.
@@ -495,6 +505,11 @@ Proyek ini menggunakan MIT License. Lihat file `LICENSE` untuk teks lengkapnya.
 - `dashboard/`: aset frontend dashboard
 - `test/`: test otomatis
 - `docs/superpowers/`: spesifikasi desain dan rencana implementasi
+
+### Skill Terkait
+
+- [performance skill (Ultimate AI Machine)](https://github.com/tanweai/pua) — diperlukan untuk Performance Mode; memberikan kemampuan persistensi agresif dan verifikasi mandiri pada AI agent.
+- [cross-session-chat](https://github.com/yixiangWangTrv/cross-session-chat) — diperlukan untuk workflow todo global; memungkinkan AI agent membuat dan mengelola todo lintas sesi OpenCode.
 
 ## Star History
 
