@@ -118,6 +118,25 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .msg-role-user{color:var(--accent)}
 .msg-role-assistant{color:var(--success)}
 .msg-loading{text-align:center;color:var(--text-muted);padding:20px;font-style:italic}
+.todo-section{margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
+.todo-section h5{font-size:13px;color:var(--accent);margin-bottom:12px}
+.todo-create{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.todo-create-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.todo-status{font-size:12px;color:var(--text-muted)}
+.todo-list{display:flex;flex-direction:column;gap:10px}
+.todo-item{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.todo-item.completed{opacity:.8}
+.todo-item.completed .todo-title{text-decoration:line-through}
+.todo-item-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.todo-title{font-size:13px;font-weight:600;color:var(--text-primary)}
+.todo-meta{margin-top:6px;font-size:12px;color:var(--text-secondary);display:flex;gap:10px;flex-wrap:wrap}
+.todo-desc{margin-top:8px;font-size:12px;line-height:1.5;color:var(--text-primary);white-space:pre-wrap}
+.todo-status-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;text-transform:capitalize}
+.todo-status-badge.open{background:rgba(79,195,247,.15);color:var(--accent)}
+.todo-status-badge.completed{background:rgba(76,175,80,.15);color:var(--success)}
+.todo-link-btn{background:transparent;border:1px solid var(--border);color:var(--accent);padding:4px 10px;border-radius:999px;font-size:11px}
+.todo-link-btn:hover{background:var(--accent-bg);opacity:1}
+button:disabled{opacity:.6;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -134,6 +153,7 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 <div class="tabs">
   <div class="tab active" data-tab="sessions">Sessions</div>
   <div class="tab" data-tab="distill">Distill</div>
+  <div class="tab" data-tab="knowledge-base">Knowledge Base</div>
   <div class="tab" data-tab="servers">Servers</div>
   <div class="tab" data-tab="prompts">Prompts</div>
   <div class="tab" data-tab="settings">Settings</div>
@@ -154,6 +174,20 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
         <button class="session-detail-close" onclick="closeSessionDetail()">&times;</button>
       </div>
       <div id="sessionMessages" class="msg-list">
+      </div>
+      <div class="todo-section">
+        <h5>Todos</h5>
+        <div class="todo-create">
+          <input type="text" id="sessionTodoTitle" placeholder="Add a todo title" onkeydown="if(event.key==='Enter')createSessionTodo()">
+          <textarea id="sessionTodoDescription" placeholder="Optional description"></textarea>
+          <div class="todo-create-actions">
+            <button id="sessionTodoAddBtn" onclick="createSessionTodo()">Add Todo</button>
+            <span class="todo-status" id="sessionTodoStatus"></span>
+          </div>
+        </div>
+        <div id="sessionTodosList" class="todo-list">
+          <div class="msg-loading">Open a session to load todos.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -221,6 +255,48 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
       <div class="form-row">
         <input type="text" id="distillChatInput" placeholder="Type a message..." style="flex:1" onkeydown="if(event.key==='Enter')sendDistillChat()">
         <button onclick="sendDistillChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Knowledge Base Panel -->
+  <div class="panel" id="panel-knowledge-base">
+    <div class="card">
+      <h3>Knowledge Base</h3>
+      <p class="note" style="margin-bottom:16px">Add reusable reference items for the bot to include in prompts.</p>
+      <div class="form-row">
+        <label for="kbEnabled">Global Enabled</label>
+        <input type="checkbox" id="kbEnabled" onchange="toggleKnowledgeBaseEnabled()">
+        <span class="note" id="kbStatus"></span>
+      </div>
+      <div class="field-group">
+        <label for="kbName">Name</label>
+        <input type="text" id="kbName" placeholder="Production runbook">
+      </div>
+      <div class="field-group">
+        <label for="kbDescription">Description</label>
+        <textarea id="kbDescription" placeholder="Short summary of what this source contains"></textarea>
+      </div>
+      <div class="field-group">
+        <label for="kbSourceType">Source Type</label>
+        <select id="kbSourceType" onchange="renderKnowledgeBaseSourceFields()">
+          <option value="local_file">local_file</option>
+          <option value="project_name">project_name</option>
+          <option value="github_url">github_url</option>
+          <option value="lark_doc">lark_doc</option>
+          <option value="free_text">free_text</option>
+        </select>
+      </div>
+      <div id="kbSourceFields"></div>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button id="kbAddBtn" onclick="createKnowledgeBaseItem()">Add</button>
+        <span class="note" id="kbCreateStatus"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Items</h3>
+      <div id="knowledgeBaseItems">
+        <p class="empty">No knowledge base items yet. Add one above.</p>
       </div>
     </div>
   </div>
@@ -449,11 +525,16 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 <script>
 // XSS escape
 function esc(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML}
+function escJsStr(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"\\r").replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 
 // State
 let prompts={};
 let currentIntent="summary";
 let evtSource=null;
+let currentSessionDetailId=null;
+let currentSessionDetailMeta=null;
+let currentSessionsById={};
+let knowledgeBaseState={enabled:true,items:[]};
 
 // Tab switching
 document.querySelectorAll(".tab").forEach(t=>{
@@ -493,7 +574,16 @@ function loadPromptFields(){
 // API helpers
 async function api(path,opts){
   const res=await fetch(path,opts);
-  if(!res.ok)throw new Error(`API ${path}: ${res.status}`);
+  if(!res.ok){
+    let message=`API ${path}: ${res.status}`;
+    try{
+      const payload=await res.json();
+      if(payload&&typeof payload.error==="string"&&payload.error){
+        message=payload.error;
+      }
+    }catch{}
+    throw new Error(message);
+  }
   return res.json();
 }
 
@@ -519,6 +609,10 @@ async function init(){
     prompts=await api("/api/prompts");
     loadPromptFields();
   }catch(e){console.error("prompts",e)}
+
+  try{
+    await loadKnowledgeBase();
+  }catch(e){console.error("knowledge-base",e)}
 
   try{
     const cfg=await api("/api/config");
@@ -548,13 +642,17 @@ async function init(){
 // Render sessions table
 function renderSessions(sessions){
   const el=document.getElementById("sessionsContent");
+  currentSessionsById={};
+  for(const s of sessions){
+    currentSessionsById[s.sessionId]=s;
+  }
   if(!sessions.length){
     el.innerHTML='<p class="empty">No sessions yet. Waiting for triggers...</p>';
     return;
   }
   let html='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th></tr></thead><tbody>';
   for(const s of sessions){
-    html+=`<tr class="session-row" onclick="openSessionDetail('${esc(s.sessionId)}','${esc(s.title||s.sessionId)}')"><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
+    html+=`<tr class="session-row" onclick="openSessionDetail('${escJsStr(s.sessionId)}','${escJsStr(s.title||s.sessionId)}')"><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
   }
   html+='</tbody></table>';
   el.innerHTML=html;
@@ -1017,6 +1115,155 @@ function renderServers(servers){
   el.innerHTML=html;
 }
 
+function getKnowledgeBaseSourceValues(){
+  return {
+    path:document.getElementById("kbSourcePath")?.value.trim()||"",
+    url:document.getElementById("kbSourceUrl")?.value.trim()||"",
+    project_name:document.getElementById("kbSourceProjectName")?.value.trim()||"",
+    text:document.getElementById("kbContentText")?.value||"",
+  };
+}
+
+async function loadKnowledgeBase(){
+  knowledgeBaseState=await api("/api/knowledge-base");
+  document.getElementById("kbEnabled").checked=!!knowledgeBaseState.enabled;
+  renderKnowledgeBaseItems();
+  renderKnowledgeBaseSourceFields();
+}
+
+function renderKnowledgeBaseSourceFields(){
+  const type=document.getElementById("kbSourceType")?.value||"local_file";
+  const values=getKnowledgeBaseSourceValues();
+  const el=document.getElementById("kbSourceFields");
+  let html="";
+
+  if(type==="local_file"){
+    html=`<div class="field-group"><label for="kbSourcePath">Local File Path</label><input type="text" id="kbSourcePath" placeholder="/path/to/file.txt" value="${esc(values.path)}"></div>`;
+  }else if(type==="project_name"){
+    html=`<div class="field-group"><label for="kbSourceProjectName">Project Name</label><input type="text" id="kbSourceProjectName" placeholder="my-project" value="${esc(values.project_name)}"></div>`;
+  }else if(type==="github_url"){
+    html=`<div class="field-group"><label for="kbSourceUrl">GitHub URL</label><input type="text" id="kbSourceUrl" placeholder="https://github.com/org/repo/blob/main/README.md" value="${esc(values.url)}"></div>`;
+  }else if(type==="lark_doc"){
+    html=`<div class="field-group"><label for="kbSourceUrl">Lark Doc URL</label><input type="text" id="kbSourceUrl" placeholder="https://.../docx/..." value="${esc(values.url)}"></div>`;
+  }else if(type==="free_text"){
+    html=`<div class="field-group"><label for="kbContentText">Free Text</label><textarea id="kbContentText" placeholder="Paste the text you want the bot to use">${esc(values.text)}</textarea></div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+function renderKnowledgeBaseItems(){
+  const el=document.getElementById("knowledgeBaseItems");
+  const items=knowledgeBaseState.items||[];
+  if(!items.length){
+    el.innerHTML='<p class="empty">No knowledge base items yet. Add one above.</p>';
+    return;
+  }
+
+  let html="";
+  for(const item of items){
+    const encodedId=encodeURIComponent(String(item.id||""));
+    const content=item.content?.mode==="inline_text"
+      ?`<div class="note" style="margin-top:8px;white-space:pre-wrap;color:var(--text-primary)">${esc((item.content.text||"").slice(0,240))}${(item.content.text||"").length>240?"...":""}</div>`
+      :'<div class="note" style="margin-top:8px">Reference-only source.</div>';
+    const summary=item.source_summary?`<div class="note" style="margin-top:4px">Source: ${esc(item.source_summary)}</div>`:"";
+    const desc=item.description?`<div class="toggle-desc" style="margin-top:4px">${esc(item.description)}</div>`:"";
+    html+=`<div class="toggle-card ${item.enabled!==false?"active":""}" style="align-items:flex-start;cursor:default">`;
+    html+=`<div class="toggle-info">`;
+    html+=`<div class="toggle-title">${esc(item.name)}</div>`;
+    html+=`<div class="note" style="margin-top:4px">Type: ${esc(item.source_type)}${item.updated_at?` • Updated: ${esc(item.updated_at)}`:""}</div>`;
+    html+=desc;
+    html+=summary;
+    html+=content;
+    html+=`</div>`;
+    html+=`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;min-width:170px">`;
+    html+=`<label class="toggle-switch" title="Toggle item enabled"><input type="checkbox" ${item.enabled!==false?"checked":""} onchange="toggleKnowledgeBaseItem(decodeURIComponent('${encodedId}'),this.checked)"><span class="toggle-slider"></span></label>`;
+    html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">`;
+    html+=`<button class="secondary" onclick="refreshKnowledgeBaseItem(decodeURIComponent('${encodedId}'))">Refresh</button>`;
+    html+=`<button class="danger" onclick="deleteKnowledgeBaseItem(decodeURIComponent('${encodedId}'))">Delete</button>`;
+    html+=`</div>`;
+    html+=`</div>`;
+    html+=`</div>`;
+  }
+  el.innerHTML=html;
+}
+
+async function createKnowledgeBaseItem(){
+  const name=document.getElementById("kbName").value.trim();
+  const description=document.getElementById("kbDescription").value.trim();
+  const source_type=document.getElementById("kbSourceType").value;
+  const values=getKnowledgeBaseSourceValues();
+  const statusEl=document.getElementById("kbCreateStatus");
+  const addBtn=document.getElementById("kbAddBtn");
+  const body={name,description,source_type};
+
+  if(source_type==="local_file")body.source={path:values.path};
+  if(source_type==="project_name")body.source={project_name:values.project_name};
+  if(source_type==="github_url"||source_type==="lark_doc")body.source={url:values.url};
+  if(source_type==="free_text")body.content={text:values.text};
+
+  addBtn.disabled=true;
+  statusEl.textContent="Creating item...";
+  statusEl.style.color="var(--text-muted)";
+
+  try{
+    await api("/api/knowledge-base/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    document.getElementById("kbName").value="";
+    document.getElementById("kbDescription").value="";
+    document.getElementById("kbSourceType").value="local_file";
+    renderKnowledgeBaseSourceFields();
+    statusEl.textContent="Knowledge base item added.";
+    statusEl.style.color="var(--success)";
+    await loadKnowledgeBase();
+  }catch(e){
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }finally{
+    addBtn.disabled=false;
+  }
+}
+
+async function toggleKnowledgeBaseEnabled(){
+  const enabled=document.getElementById("kbEnabled").checked;
+  const statusEl=document.getElementById("kbStatus");
+  statusEl.textContent="Saving...";
+  statusEl.style.color="var(--text-muted)";
+  try{
+    knowledgeBaseState=await api("/api/knowledge-base",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled})});
+    statusEl.textContent="Saved.";
+    statusEl.style.color="var(--success)";
+  }catch(e){
+    document.getElementById("kbEnabled").checked=!enabled;
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }
+}
+
+async function toggleKnowledgeBaseItem(id,enabled){
+  try{
+    await api(`/api/knowledge-base/items/${encodeURIComponent(id)}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({enabled})});
+    await loadKnowledgeBase();
+  }catch(e){
+    alert("Failed: "+e.message);
+    await loadKnowledgeBase();
+  }
+}
+
+async function refreshKnowledgeBaseItem(id){
+  try{
+    await api(`/api/knowledge-base/items/${encodeURIComponent(id)}/refresh`,{method:"POST"});
+    await loadKnowledgeBase();
+  }catch(e){alert("Failed: "+e.message)}
+}
+
+async function deleteKnowledgeBaseItem(id){
+  if(!confirm("Delete this knowledge base item?"))return;
+  try{
+    await api(`/api/knowledge-base/items/${encodeURIComponent(id)}`,{method:"DELETE"});
+    await loadKnowledgeBase();
+  }catch(e){alert("Failed: "+e.message)}
+}
+
 // Server actions
 async function startServer(){
   const port=document.getElementById("newPort").value;
@@ -1226,6 +1473,7 @@ function connectSSE(){
 }
 
 function addSessionRow(s){
+  currentSessionsById[s.sessionId]=s;
   const el=document.getElementById("sessionsContent");
   let tbody=el.querySelector("tbody");
   if(!tbody){
@@ -1240,38 +1488,163 @@ function addSessionRow(s){
 }
 
 // Session detail view
-async function openSessionDetail(sessionId,title){
+async function openSessionDetail(sessionId,title,meta={}){
   const panel=document.getElementById("sessionDetail");
   const msgEl=document.getElementById("sessionMessages");
+  const todoStatusEl=document.getElementById("sessionTodoStatus");
+  const todoTitleEl=document.getElementById("sessionTodoTitle");
+  const todoDescEl=document.getElementById("sessionTodoDescription");
+  const addBtn=document.getElementById("sessionTodoAddBtn");
+  currentSessionDetailId=sessionId;
+  currentSessionDetailMeta={...(currentSessionsById[sessionId]||{}),...meta};
   document.getElementById("sessionDetailTitle").textContent=title;
   panel.classList.add("active");
   msgEl.innerHTML='<div class="msg-loading">Loading messages...</div>';
+  todoTitleEl.value="";
+  todoDescEl.value="";
+  todoTitleEl.disabled=false;
+  todoDescEl.disabled=false;
+  addBtn.disabled=false;
+  todoStatusEl.textContent="";
+  renderSessionTodosLoading();
 
-  try{
-    const messages=await api(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
-    if(!messages.length){
-      msgEl.innerHTML='<div class="msg-loading">No messages in this session.</div>';
-      return;
+  const messagePromise=(async()=>{
+    try{
+      const messages=await api(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
+      if(currentSessionDetailId!==sessionId)return;
+      if(!messages.length){
+        msgEl.innerHTML='<div class="msg-loading">No messages in this session.</div>';
+        return;
+      }
+      let html="";
+      for(const msg of messages){
+        const role=msg.info?.role||"unknown";
+        const text=msg.parts?.filter(p=>p.type==="text").map(p=>p.text).join("\n")||"";
+        if(!text.trim())continue;
+        const roleClass=role==="user"?"msg-user":"msg-assistant";
+        const roleLabelClass=role==="user"?"msg-role-user":"msg-role-assistant";
+        html+=`<div class="msg-bubble ${roleClass}"><div class="msg-role ${roleLabelClass}">${esc(role)}</div>${esc(text)}</div>`;
+      }
+      msgEl.innerHTML=html||'<div class="msg-loading">No text messages found.</div>';
+      msgEl.scrollTop=msgEl.scrollHeight;
+    }catch(e){
+      if(currentSessionDetailId!==sessionId)return;
+      msgEl.innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
     }
-    let html="";
-    for(const msg of messages){
-      const role=msg.info?.role||"unknown";
-      const text=msg.parts?.filter(p=>p.type==="text").map(p=>p.text).join("\n")||"";
-      if(!text.trim())continue;
-      const roleClass=role==="user"?"msg-user":"msg-assistant";
-      const roleLabelClass=role==="user"?"msg-role-user":"msg-role-assistant";
-      html+=`<div class="msg-bubble ${roleClass}"><div class="msg-role ${roleLabelClass}">${esc(role)}</div>${esc(text)}</div>`;
-    }
-    msgEl.innerHTML=html||'<div class="msg-loading">No text messages found.</div>';
-    // Scroll to bottom
-    msgEl.scrollTop=msgEl.scrollHeight;
-  }catch(e){
-    msgEl.innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
-  }
+  })();
+
+  const todoPromise=loadSessionTodos(sessionId);
+  await Promise.allSettled([messagePromise,todoPromise]);
 }
 
 function closeSessionDetail(){
+  currentSessionDetailId=null;
+  currentSessionDetailMeta=null;
   document.getElementById("sessionDetail").classList.remove("active");
+}
+
+function renderSessionTodosLoading(){
+  document.getElementById("sessionTodosList").innerHTML='<div class="msg-loading">Loading todos...</div>';
+}
+
+function renderSessionTodos(todos){
+  const el=document.getElementById("sessionTodosList");
+  const titleEl=document.getElementById("sessionTodoTitle");
+  const descEl=document.getElementById("sessionTodoDescription");
+  const addBtn=document.getElementById("sessionTodoAddBtn");
+  const statusEl=document.getElementById("sessionTodoStatus");
+  const nestedTodoSession=!!currentSessionDetailMeta?.todoParentSessionId;
+  if(nestedTodoSession){
+    titleEl.disabled=true;
+    descEl.disabled=true;
+    addBtn.disabled=true;
+    if(!statusEl.textContent){
+      statusEl.textContent="Nested todos are not supported for todo sessions.";
+      statusEl.style.color="var(--text-muted)";
+    }
+  }
+  if(!todos.length){
+    el.innerHTML='<div class="msg-loading">No todos for this session yet.</div>';
+    return;
+  }
+  let html="";
+  for(const todo of todos){
+    const completed=todo.status==="completed";
+    const completeBtn=completed?"":`<button class="secondary" onclick="completeTodo('${escJsStr(todo.id)}')">Complete</button>`;
+    const desc=todo.description?`<div class="todo-desc">${esc(todo.description)}</div>`:"";
+    const status=todo.status||"open";
+    const openTodoSessionBtn=todo.todoSessionId
+      ?`<button class="todo-link-btn" onclick="openSessionDetail('${escJsStr(todo.todoSessionId)}','${escJsStr(`Todo: ${todo.title}`)}',{todoParentSessionId:'${escJsStr(currentSessionDetailId)}'})">Open Todo Session</button>`
+      :"";
+    html+=`<div class="todo-item ${completed?"completed":""}">`;
+    html+=`<div class="todo-item-header"><div><div class="todo-title">${esc(todo.title)}</div><div class="todo-meta"><span class="todo-status-badge ${status==="completed"?"completed":"open"}">${esc(status)}</span><span>Created: ${esc(todo.createdAt||"-")}</span>${openTodoSessionBtn}</div>${desc}</div>${completeBtn}</div>`;
+    html+=`</div>`;
+  }
+  el.innerHTML=html;
+}
+
+async function loadSessionTodos(sessionId){
+  try{
+    const todos=await api(`/api/sessions/${encodeURIComponent(sessionId)}/todos`);
+    if(currentSessionDetailId!==sessionId)return;
+    renderSessionTodos(todos);
+  }catch(e){
+    if(currentSessionDetailId!==sessionId)return;
+    document.getElementById("sessionTodosList").innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function createSessionTodo(){
+  const sessionId=currentSessionDetailId;
+  if(!sessionId)return;
+  const titleEl=document.getElementById("sessionTodoTitle");
+  const descEl=document.getElementById("sessionTodoDescription");
+  const statusEl=document.getElementById("sessionTodoStatus");
+  const addBtn=document.getElementById("sessionTodoAddBtn");
+  const title=titleEl.value.trim();
+  const description=descEl.value.trim();
+  if(!title){
+    statusEl.textContent="Title required.";
+    statusEl.style.color="var(--danger)";
+    return;
+  }
+  addBtn.disabled=true;
+  statusEl.textContent="Creating todo...";
+  statusEl.style.color="var(--text-muted)";
+  try{
+    await api(`/api/sessions/${encodeURIComponent(sessionId)}/todos`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,description})});
+    if(currentSessionDetailId!==sessionId)return;
+    titleEl.value="";
+    descEl.value="";
+    statusEl.textContent="Todo created.";
+    statusEl.style.color="var(--success)";
+    await loadSessionTodos(sessionId);
+  }catch(e){
+    if(currentSessionDetailId!==sessionId)return;
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }finally{
+    addBtn.disabled=false;
+  }
+}
+
+async function completeTodo(todoId){
+  const sessionId=currentSessionDetailId;
+  if(!sessionId)return;
+  const statusEl=document.getElementById("sessionTodoStatus");
+  statusEl.textContent="Completing todo...";
+  statusEl.style.color="var(--text-muted)";
+  try{
+    await api(`/api/todos/${encodeURIComponent(todoId)}/complete`,{method:"POST"});
+    if(currentSessionDetailId!==sessionId)return;
+    statusEl.textContent="Todo completed.";
+    statusEl.style.color="var(--success)";
+    await loadSessionTodos(sessionId);
+  }catch(e){
+    if(currentSessionDetailId!==sessionId)return;
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }
 }
 
 // PUA Mode
