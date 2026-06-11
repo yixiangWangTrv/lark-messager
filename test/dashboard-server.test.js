@@ -1,6 +1,6 @@
 import { describe, it, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { unlinkSync } from "node:fs";
+import { unlinkSync, writeFileSync } from "node:fs";
 import { DashboardServer } from "../lib/dashboard-server.js";
 import { botEvents } from "../lib/bot-events.js";
 
@@ -8,6 +8,7 @@ describe("DashboardServer", () => {
   let server;
   const TEST_PORT = 18915;
   const baseUrl = `http://localhost:${TEST_PORT}`;
+  const localFilePath = "/tmp/dashboard-server-kb-local-file.txt";
   const config = {
     dashboard: { port: TEST_PORT, enabled: true },
     opencode: { base_url: "http://localhost:3000" },
@@ -32,6 +33,17 @@ describe("DashboardServer", () => {
           source: {},
           content: { mode: "inline_text", text: "seed body" },
           source_summary: undefined,
+          enabled: false,
+          updated_at: "2026-01-01T00:00:00.000Z",
+        },
+        {
+          id: "kb-local-file",
+          name: "Local file item",
+          description: "file-backed item",
+          source_type: "local_file",
+          source: { path: localFilePath },
+          content: { mode: "inline_text", text: "stale file body" },
+          source_summary: localFilePath,
           enabled: true,
           updated_at: "2026-01-01T00:00:00.000Z",
         },
@@ -40,6 +52,7 @@ describe("DashboardServer", () => {
   };
 
   before(async () => {
+    writeFileSync(localFilePath, "initial local file body");
     server = new DashboardServer({ config, botEvents, configPath: "/tmp/test-config.json" });
     await server.start();
   });
@@ -48,6 +61,11 @@ describe("DashboardServer", () => {
     server.stop();
     try {
       unlinkSync("/tmp/test-config.json");
+    } catch {
+      // ignore
+    }
+    try {
+      unlinkSync(localFilePath);
     } catch {
       // ignore
     }
@@ -72,8 +90,59 @@ describe("DashboardServer", () => {
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(data.enabled, true);
-    assert.equal(data.items.length, 1);
+    assert.equal(data.items.length, 2);
     assert.equal(data.items[0].id, "kb-existing");
+  });
+
+  it("PUT /api/knowledge-base/items/:id merges with the existing item before rebuilding", async () => {
+    const res = await fetch(`${baseUrl}/api/knowledge-base/items/kb-existing`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Updated existing item",
+        content: { text: "updated body" },
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.id, "kb-existing");
+    assert.equal(data.name, "Updated existing item");
+    assert.equal(data.description, "seed item");
+    assert.equal(data.source_type, "free_text");
+    assert.deepEqual(data.source, {});
+    assert.equal(data.content.text, "updated body");
+    assert.equal(data.enabled, false);
+
+    const getRes = await fetch(`${baseUrl}/api/knowledge-base`);
+    const knowledgeBase = await getRes.json();
+    const updatedItem = knowledgeBase.items.find((item) => item.id === "kb-existing");
+    assert.ok(updatedItem);
+    assert.equal(updatedItem.description, "seed item");
+    assert.equal(updatedItem.enabled, false);
+  });
+
+  it("POST /api/knowledge-base/items/:id/refresh refreshes an existing local_file item", async () => {
+    writeFileSync(localFilePath, "refreshed local file body");
+
+    const res = await fetch(`${baseUrl}/api/knowledge-base/items/kb-local-file/refresh`, {
+      method: "POST",
+    });
+
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.id, "kb-local-file");
+    assert.equal(data.source_type, "local_file");
+    assert.equal(data.source.path, localFilePath);
+    assert.equal(data.content.mode, "inline_text");
+    assert.equal(data.content.text, "refreshed local file body");
+    assert.equal(data.source_summary, localFilePath);
+
+    const getRes = await fetch(`${baseUrl}/api/knowledge-base`);
+    const knowledgeBase = await getRes.json();
+    const refreshedItem = knowledgeBase.items.find((item) => item.id === "kb-local-file");
+    assert.ok(refreshedItem);
+    assert.equal(refreshedItem.content.text, "refreshed local file body");
   });
 
   it("POST /api/knowledge-base/items creates a free_text item", async () => {
@@ -97,8 +166,8 @@ describe("DashboardServer", () => {
 
     const getRes = await fetch(`${baseUrl}/api/knowledge-base`);
     const knowledgeBase = await getRes.json();
-    assert.equal(knowledgeBase.items.length, 2);
-    assert.equal(knowledgeBase.items[1].id, data.id);
+    assert.equal(knowledgeBase.items.length, 3);
+    assert.ok(knowledgeBase.items.some((item) => item.id === data.id));
   });
 
   it("PUT /api/knowledge-base updates enabled flag", async () => {
