@@ -38,6 +38,12 @@ The dashboard server in `lib/dashboard-server.js` exposes local HTTP endpoints f
 
 ### Quick Start
 
+> **Recommended:** The easiest way to get started is to copy the repo URL and hand it to your AI agent — ask it to clone the repo, read the README, and complete the setup for you.
+>
+> ```
+> https://github.com/yixiangWangTrv/lark-messager
+> ```
+
 Install dependencies:
 
 ```sh
@@ -196,6 +202,12 @@ This project is licensed under the MIT License. See `LICENSE` for the full text.
 
 ### 快速开始
 
+> **推荐方式：** 最简单的上手方式是把仓库地址复制给你的 AI Agent，让它帮你 clone 仓库、阅读 README 并完成全部安装配置。
+>
+> ```
+> https://github.com/yixiangWangTrv/lark-messager
+> ```
+
 安装依赖：
 
 ```sh
@@ -353,6 +365,12 @@ Server dashboard di `lib/dashboard-server.js` menyediakan endpoint HTTP lokal un
 - Server OpenCode yang dapat dijangkau, atau izin agar bot menyalakannya secara lokal
 
 ### Mulai Cepat
+
+> **Cara yang disarankan:** Cara termudah untuk memulai adalah menyalin URL repo ini lalu memberikannya ke AI agent Anda — minta ia clone repo, baca README, dan selesaikan proses setup untuk Anda.
+>
+> ```
+> https://github.com/yixiangWangTrv/lark-messager
+> ```
 
 Pasang dependensi:
 
