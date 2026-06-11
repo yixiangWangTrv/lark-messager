@@ -36,6 +36,20 @@ The dashboard server in `lib/dashboard-server.js` exposes local HTTP endpoints f
 - `opencode` installed and available in `PATH`
 - A reachable OpenCode server, or permission to let the bot auto-start one locally
 
+#### Required lark-cli Permissions
+
+The bot identity (app or user) must have the following Lark app scopes granted. You can review and enable them in the [Lark Open Platform developer console](https://open.larksuite.com/app) under your app's **Permissions & Scopes** page.
+
+| Scope | Purpose |
+|---|---|
+| `im:message:receive_v1` | Receive incoming chat messages via event subscription |
+| `im:message` (send) | Send and reply to messages in chats and DMs |
+| `im:message:list_in_chat` | Read chat message history and thread messages for context |
+| `im:chat:readonly` | List, search, and get chat metadata |
+| `contact:user.id:readonly` | Search users by name (used by style distillation) |
+
+After granting scopes, re-authenticate `lark-cli` with `lark-cli auth login` to refresh the token.
+
 ### Quick Start
 
 > **Recommended:** The easiest way to get started is to copy the repo URL and hand it to your AI agent — ask it to clone the repo, read the README, and complete the setup for you.
@@ -205,6 +219,20 @@ This project is licensed under the MIT License. See `LICENSE` for the full text.
 - 已安装且可在 `PATH` 中找到的 `opencode`
 - 一个可访问的 OpenCode 服务，或者允许机器人在本地自动拉起服务
 
+#### lark-cli 必要权限
+
+机器人身份（应用或用户）需要在飞书开放平台授予以下权限。前往 [飞书开放平台控制台](https://open.feishu.cn/app) 在对应应用的**权限管理**页面开启。
+
+| 权限标识 | 用途 |
+|---|---|
+| `im:message:receive_v1` | 通过事件订阅接收消息 |
+| `im:message`（发送） | 向群聊和私聊发送/回复消息 |
+| `im:message:list_in_chat` | 读取群聊历史消息和话题消息（用于上下文抓取） |
+| `im:chat:readonly` | 列举、搜索群聊及获取群信息 |
+| `contact:user.id:readonly` | 按姓名搜索用户（风格蒸馏功能使用） |
+
+授权完成后，执行 `lark-cli auth login` 重新认证以刷新 token。
+
 ### 快速开始
 
 > **推荐方式：** 最简单的上手方式是把仓库地址复制给你的 AI Agent，让它帮你 clone 仓库、阅读 README 并完成全部安装配置。
@@ -373,6 +401,20 @@ Server dashboard di `lib/dashboard-server.js` menyediakan endpoint HTTP lokal un
 - `lark-cli` terpasang dan sudah terautentikasi untuk identitas yang digunakan bot
 - `opencode` terpasang dan tersedia di `PATH`
 - Server OpenCode yang dapat dijangkau, atau izin agar bot menyalakannya secara lokal
+
+#### Izin lark-cli yang Diperlukan
+
+Identitas bot (aplikasi atau pengguna) harus memiliki scope Lark berikut. Buka [Lark Open Platform developer console](https://open.larksuite.com/app), masuk ke halaman **Permissions &amp; Scopes** aplikasi Anda, lalu aktifkan scope-scope berikut.
+
+| Scope | Kegunaan |
+|---|---|
+| `im:message:receive_v1` | Menerima pesan masuk melalui event subscription |
+| `im:message` (send) | Mengirim dan membalas pesan di grup maupun DM |
+| `im:message:list_in_chat` | Membaca riwayat pesan chat dan thread untuk konteks |
+| `im:chat:readonly` | Mendaftar, mencari, dan mengambil metadata chat |
+| `contact:user.id:readonly` | Mencari pengguna berdasarkan nama (digunakan oleh distilasi gaya) |
+
+Setelah memberikan scope, jalankan `lark-cli auth login` untuk memperbarui token.
 
 ### Mulai Cepat
 
