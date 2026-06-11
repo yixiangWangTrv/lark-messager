@@ -1194,8 +1194,8 @@ function renderServers(servers){
     const sourceBadge=isBot
       ?`<span style="color:var(--warn)">${t("bot")} 🤖</span>`
       :s.source==="external"
-        ?`<span style="color:var(--text-secondary)">Opencode Server 💻 (${t("external")})</span>`
-        :`<span style="color:var(--accent)">Opencode Server 💻 (${t("managed")})</span>`;
+        ?`<span style="color:var(--text-secondary)">Opencode Server 💻</span>`
+        :`<span style="color:var(--accent)">Opencode Server 💻</span>`;
     const rowClass=[s.bound?"server-row-bound":"",isBot?"server-row-bot":""].filter(Boolean).join(" ");
     html+=`<tr class="${rowClass}"><td>${portLabel}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
     html+=`<td>`;
