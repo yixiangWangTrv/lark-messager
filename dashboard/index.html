@@ -345,13 +345,13 @@ button:disabled{opacity:.6;cursor:not-allowed}
   <!-- Prompts Panel -->
   <div class="panel" id="panel-prompts">
     <div class="card" style="border-color:var(--danger);border-width:2px">
-      <h3 style="color:var(--danger)">&#x26A0;&#xFE0F; performance Mode (Ultimate AI Machine) <span class="badge badge-warn" style="font-size:11px">Use with Caution</span></h3>
-      <p class="note" style="margin-bottom:12px;color:var(--warn)">Enables aggressive persistence mode — AI will not give up easily, will exhaust all solutions, and will self-verify before claiming completion. Requires the performance skill installed on the OpenCode instance.</p>
+      <h3 style="color:var(--danger)">&#x26A0;&#xFE0F; Performance Mode (Ultimate AI Machine) <span class="badge badge-warn" style="font-size:11px">Use with Caution</span></h3>
+      <p class="note" style="margin-bottom:12px;color:var(--warn)">Enables aggressive persistence mode — AI will not give up easily, will exhaust all solutions, and will self-verify before claiming completion. Requires the <a href="https://github.com/tanweai/pua" target="_blank" rel="noopener">performance skill</a> installed on the OpenCode instance.</p>
 
       <div class="toggle-card" id="cardPuaEnabled" onclick="togglePua('puaEnabled')">
         <div class="toggle-icon" style="background:rgba(244,67,54,.15);color:var(--danger)">&#x1F525;</div>
         <div class="toggle-info">
-          <div class="toggle-title">Enable performance Mode (Ultimate AI Machine) <span class="badge badge-warn">Caution</span></div>
+          <div class="toggle-title">Enable Performance Mode (Ultimate AI Machine) <span class="badge badge-warn">Caution</span></div>
           <div class="toggle-desc">Master switch. When ON, selected intents below will receive performance skill injection.</div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
