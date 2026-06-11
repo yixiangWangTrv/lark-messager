@@ -118,6 +118,25 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .msg-role-user{color:var(--accent)}
 .msg-role-assistant{color:var(--success)}
 .msg-loading{text-align:center;color:var(--text-muted);padding:20px;font-style:italic}
+.todo-section{margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
+.todo-section h5{font-size:13px;color:var(--accent);margin-bottom:12px}
+.todo-create{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+.todo-create-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.todo-status{font-size:12px;color:var(--text-muted)}
+.todo-list{display:flex;flex-direction:column;gap:10px}
+.todo-item{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.todo-item.completed{opacity:.8}
+.todo-item.completed .todo-title{text-decoration:line-through}
+.todo-item-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.todo-title{font-size:13px;font-weight:600;color:var(--text-primary)}
+.todo-meta{margin-top:6px;font-size:12px;color:var(--text-secondary);display:flex;gap:10px;flex-wrap:wrap}
+.todo-desc{margin-top:8px;font-size:12px;line-height:1.5;color:var(--text-primary);white-space:pre-wrap}
+.todo-status-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;text-transform:capitalize}
+.todo-status-badge.open{background:rgba(79,195,247,.15);color:var(--accent)}
+.todo-status-badge.completed{background:rgba(76,175,80,.15);color:var(--success)}
+.todo-link-btn{background:transparent;border:1px solid var(--border);color:var(--accent);padding:4px 10px;border-radius:999px;font-size:11px}
+.todo-link-btn:hover{background:var(--accent-bg);opacity:1}
+button:disabled{opacity:.6;cursor:not-allowed}
 </style>
 </head>
 <body>
@@ -154,6 +173,20 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
         <button class="session-detail-close" onclick="closeSessionDetail()">&times;</button>
       </div>
       <div id="sessionMessages" class="msg-list">
+      </div>
+      <div class="todo-section">
+        <h5>Todos</h5>
+        <div class="todo-create">
+          <input type="text" id="sessionTodoTitle" placeholder="Add a todo title" onkeydown="if(event.key==='Enter')createSessionTodo()">
+          <textarea id="sessionTodoDescription" placeholder="Optional description"></textarea>
+          <div class="todo-create-actions">
+            <button id="sessionTodoAddBtn" onclick="createSessionTodo()">Add Todo</button>
+            <span class="todo-status" id="sessionTodoStatus"></span>
+          </div>
+        </div>
+        <div id="sessionTodosList" class="todo-list">
+          <div class="msg-loading">Open a session to load todos.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -449,11 +482,15 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 <script>
 // XSS escape
 function esc(s){const d=document.createElement("div");d.textContent=String(s??"");return d.innerHTML}
+function escJsStr(s){return String(s??"").replace(/\\/g,"\\\\").replace(/'/g,"\\'").replace(/\n/g,"\\n").replace(/\r/g,"\\r").replace(/\u2028/g,"\\u2028").replace(/\u2029/g,"\\u2029").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 
 // State
 let prompts={};
 let currentIntent="summary";
 let evtSource=null;
+let currentSessionDetailId=null;
+let currentSessionDetailMeta=null;
+let currentSessionsById={};
 
 // Tab switching
 document.querySelectorAll(".tab").forEach(t=>{
@@ -493,7 +530,16 @@ function loadPromptFields(){
 // API helpers
 async function api(path,opts){
   const res=await fetch(path,opts);
-  if(!res.ok)throw new Error(`API ${path}: ${res.status}`);
+  if(!res.ok){
+    let message=`API ${path}: ${res.status}`;
+    try{
+      const payload=await res.json();
+      if(payload&&typeof payload.error==="string"&&payload.error){
+        message=payload.error;
+      }
+    }catch{}
+    throw new Error(message);
+  }
   return res.json();
 }
 
@@ -548,13 +594,17 @@ async function init(){
 // Render sessions table
 function renderSessions(sessions){
   const el=document.getElementById("sessionsContent");
+  currentSessionsById={};
+  for(const s of sessions){
+    currentSessionsById[s.sessionId]=s;
+  }
   if(!sessions.length){
     el.innerHTML='<p class="empty">No sessions yet. Waiting for triggers...</p>';
     return;
   }
   let html='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th></tr></thead><tbody>';
   for(const s of sessions){
-    html+=`<tr class="session-row" onclick="openSessionDetail('${esc(s.sessionId)}','${esc(s.title||s.sessionId)}')"><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
+    html+=`<tr class="session-row" onclick="openSessionDetail('${escJsStr(s.sessionId)}','${escJsStr(s.title||s.sessionId)}')"><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
   }
   html+='</tbody></table>';
   el.innerHTML=html;
@@ -1009,7 +1059,7 @@ function renderServers(servers){
     html+=`<tr class="${rowClass}"><td>${esc(s.port)}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
     html+=`<td>`;
     if(s.status==="running"){
-      html+=`<button class="danger" onclick="confirmStopServer('${esc(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
+      html+=`<button class="danger" onclick="confirmStopServer('${escJsStr(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
     }
     html+=`</td></tr>`;
   }
@@ -1226,6 +1276,7 @@ function connectSSE(){
 }
 
 function addSessionRow(s){
+  currentSessionsById[s.sessionId]=s;
   const el=document.getElementById("sessionsContent");
   let tbody=el.querySelector("tbody");
   if(!tbody){
@@ -1240,38 +1291,163 @@ function addSessionRow(s){
 }
 
 // Session detail view
-async function openSessionDetail(sessionId,title){
+async function openSessionDetail(sessionId,title,meta={}){
   const panel=document.getElementById("sessionDetail");
   const msgEl=document.getElementById("sessionMessages");
+  const todoStatusEl=document.getElementById("sessionTodoStatus");
+  const todoTitleEl=document.getElementById("sessionTodoTitle");
+  const todoDescEl=document.getElementById("sessionTodoDescription");
+  const addBtn=document.getElementById("sessionTodoAddBtn");
+  currentSessionDetailId=sessionId;
+  currentSessionDetailMeta={...(currentSessionsById[sessionId]||{}),...meta};
   document.getElementById("sessionDetailTitle").textContent=title;
   panel.classList.add("active");
   msgEl.innerHTML='<div class="msg-loading">Loading messages...</div>';
+  todoTitleEl.value="";
+  todoDescEl.value="";
+  todoTitleEl.disabled=false;
+  todoDescEl.disabled=false;
+  addBtn.disabled=false;
+  todoStatusEl.textContent="";
+  renderSessionTodosLoading();
 
-  try{
-    const messages=await api(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
-    if(!messages.length){
-      msgEl.innerHTML='<div class="msg-loading">No messages in this session.</div>';
-      return;
+  const messagePromise=(async()=>{
+    try{
+      const messages=await api(`/api/sessions/${encodeURIComponent(sessionId)}/messages`);
+      if(currentSessionDetailId!==sessionId)return;
+      if(!messages.length){
+        msgEl.innerHTML='<div class="msg-loading">No messages in this session.</div>';
+        return;
+      }
+      let html="";
+      for(const msg of messages){
+        const role=msg.info?.role||"unknown";
+        const text=msg.parts?.filter(p=>p.type==="text").map(p=>p.text).join("\n")||"";
+        if(!text.trim())continue;
+        const roleClass=role==="user"?"msg-user":"msg-assistant";
+        const roleLabelClass=role==="user"?"msg-role-user":"msg-role-assistant";
+        html+=`<div class="msg-bubble ${roleClass}"><div class="msg-role ${roleLabelClass}">${esc(role)}</div>${esc(text)}</div>`;
+      }
+      msgEl.innerHTML=html||'<div class="msg-loading">No text messages found.</div>';
+      msgEl.scrollTop=msgEl.scrollHeight;
+    }catch(e){
+      if(currentSessionDetailId!==sessionId)return;
+      msgEl.innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
     }
-    let html="";
-    for(const msg of messages){
-      const role=msg.info?.role||"unknown";
-      const text=msg.parts?.filter(p=>p.type==="text").map(p=>p.text).join("\n")||"";
-      if(!text.trim())continue;
-      const roleClass=role==="user"?"msg-user":"msg-assistant";
-      const roleLabelClass=role==="user"?"msg-role-user":"msg-role-assistant";
-      html+=`<div class="msg-bubble ${roleClass}"><div class="msg-role ${roleLabelClass}">${esc(role)}</div>${esc(text)}</div>`;
-    }
-    msgEl.innerHTML=html||'<div class="msg-loading">No text messages found.</div>';
-    // Scroll to bottom
-    msgEl.scrollTop=msgEl.scrollHeight;
-  }catch(e){
-    msgEl.innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
-  }
+  })();
+
+  const todoPromise=loadSessionTodos(sessionId);
+  await Promise.allSettled([messagePromise,todoPromise]);
 }
 
 function closeSessionDetail(){
+  currentSessionDetailId=null;
+  currentSessionDetailMeta=null;
   document.getElementById("sessionDetail").classList.remove("active");
+}
+
+function renderSessionTodosLoading(){
+  document.getElementById("sessionTodosList").innerHTML='<div class="msg-loading">Loading todos...</div>';
+}
+
+function renderSessionTodos(todos){
+  const el=document.getElementById("sessionTodosList");
+  const titleEl=document.getElementById("sessionTodoTitle");
+  const descEl=document.getElementById("sessionTodoDescription");
+  const addBtn=document.getElementById("sessionTodoAddBtn");
+  const statusEl=document.getElementById("sessionTodoStatus");
+  const nestedTodoSession=!!currentSessionDetailMeta?.todoParentSessionId;
+  if(nestedTodoSession){
+    titleEl.disabled=true;
+    descEl.disabled=true;
+    addBtn.disabled=true;
+    if(!statusEl.textContent){
+      statusEl.textContent="Nested todos are not supported for todo sessions.";
+      statusEl.style.color="var(--text-muted)";
+    }
+  }
+  if(!todos.length){
+    el.innerHTML='<div class="msg-loading">No todos for this session yet.</div>';
+    return;
+  }
+  let html="";
+  for(const todo of todos){
+    const completed=todo.status==="completed";
+    const completeBtn=completed?"":`<button class="secondary" onclick="completeTodo('${escJsStr(todo.id)}')">Complete</button>`;
+    const desc=todo.description?`<div class="todo-desc">${esc(todo.description)}</div>`:"";
+    const status=todo.status||"open";
+    const openTodoSessionBtn=todo.todoSessionId
+      ?`<button class="todo-link-btn" onclick="openSessionDetail('${escJsStr(todo.todoSessionId)}','${escJsStr(`Todo: ${todo.title}`)}',{todoParentSessionId:'${escJsStr(currentSessionDetailId)}'})">Open Todo Session</button>`
+      :"";
+    html+=`<div class="todo-item ${completed?"completed":""}">`;
+    html+=`<div class="todo-item-header"><div><div class="todo-title">${esc(todo.title)}</div><div class="todo-meta"><span class="todo-status-badge ${status==="completed"?"completed":"open"}">${esc(status)}</span><span>Created: ${esc(todo.createdAt||"-")}</span>${openTodoSessionBtn}</div>${desc}</div>${completeBtn}</div>`;
+    html+=`</div>`;
+  }
+  el.innerHTML=html;
+}
+
+async function loadSessionTodos(sessionId){
+  try{
+    const todos=await api(`/api/sessions/${encodeURIComponent(sessionId)}/todos`);
+    if(currentSessionDetailId!==sessionId)return;
+    renderSessionTodos(todos);
+  }catch(e){
+    if(currentSessionDetailId!==sessionId)return;
+    document.getElementById("sessionTodosList").innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
+  }
+}
+
+async function createSessionTodo(){
+  const sessionId=currentSessionDetailId;
+  if(!sessionId)return;
+  const titleEl=document.getElementById("sessionTodoTitle");
+  const descEl=document.getElementById("sessionTodoDescription");
+  const statusEl=document.getElementById("sessionTodoStatus");
+  const addBtn=document.getElementById("sessionTodoAddBtn");
+  const title=titleEl.value.trim();
+  const description=descEl.value.trim();
+  if(!title){
+    statusEl.textContent="Title required.";
+    statusEl.style.color="var(--danger)";
+    return;
+  }
+  addBtn.disabled=true;
+  statusEl.textContent="Creating todo...";
+  statusEl.style.color="var(--text-muted)";
+  try{
+    await api(`/api/sessions/${encodeURIComponent(sessionId)}/todos`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,description})});
+    if(currentSessionDetailId!==sessionId)return;
+    titleEl.value="";
+    descEl.value="";
+    statusEl.textContent="Todo created.";
+    statusEl.style.color="var(--success)";
+    await loadSessionTodos(sessionId);
+  }catch(e){
+    if(currentSessionDetailId!==sessionId)return;
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }finally{
+    addBtn.disabled=false;
+  }
+}
+
+async function completeTodo(todoId){
+  const sessionId=currentSessionDetailId;
+  if(!sessionId)return;
+  const statusEl=document.getElementById("sessionTodoStatus");
+  statusEl.textContent="Completing todo...";
+  statusEl.style.color="var(--text-muted)";
+  try{
+    await api(`/api/todos/${encodeURIComponent(todoId)}/complete`,{method:"POST"});
+    if(currentSessionDetailId!==sessionId)return;
+    statusEl.textContent="Todo completed.";
+    statusEl.style.color="var(--success)";
+    await loadSessionTodos(sessionId);
+  }catch(e){
+    if(currentSessionDetailId!==sessionId)return;
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }
 }
 
 // PUA Mode
@@ -1390,7 +1566,7 @@ async function distillSearchGroup() {
       return;
     }
     el.innerHTML = results.map(g =>
-      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillGroup('${esc(g.chat_id)}','${esc(g.name)}')">
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillGroup('${escJsStr(g.chat_id)}','${escJsStr(g.name)}')">
         <div class="toggle-info">
           <div class="toggle-title" style="font-size:13px">${esc(g.name)}</div>
           <div class="toggle-desc" style="font-size:11px;color:var(--text-muted)">${esc(g.description || "").slice(0, 60)}</div>
@@ -1423,7 +1599,7 @@ async function distillSearchContact() {
       return;
     }
     el.innerHTML = results.map(u =>
-      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${esc(u.open_id)}','${esc(u.name)}','${esc(u.p2p_chat_id||"")}')">
+      `<div class="toggle-card" style="padding:8px 12px;margin-bottom:4px;cursor:pointer" onclick="selectDistillContact('${escJsStr(u.open_id)}','${escJsStr(u.name)}','${escJsStr(u.p2p_chat_id||"")}')">
         <div class="toggle-info">
           <div class="toggle-title" style="font-size:13px">${esc(u.name)}</div>
           <div class="toggle-desc">${esc(u.department || "")}</div>
@@ -1513,7 +1689,7 @@ async function loadDistilledList() {
       const isActive = d.slug === activeSlug;
       const applyBtn = isActive
         ? `<button class="secondary" onclick="deactivateStyle()" style="font-size:12px;padding:4px 10px">\u2714 ${t("active")}</button>`
-        : `<button onclick="activateStyle('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} ${t("apply")}</button>`;
+        : `<button onclick="activateStyle('${escJsStr(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F3A4} ${t("apply")}</button>`;
       return `<div class="toggle-card${isActive ? " active" : ""}" style="padding:12px 16px;margin-bottom:8px">
         <div class="toggle-icon" style="font-size:16px">\u{1F9EC}</div>
         <div class="toggle-info" style="flex:1">
@@ -1523,8 +1699,8 @@ async function loadDistilledList() {
         </div>
         <div style="display:flex;gap:6px">
           ${applyBtn}
-          <button onclick="openDistillChat('${esc(d.slug)}','${esc(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} ${t("test")}</button>
-          <button class="danger" onclick="deleteDistillProfile('${esc(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
+          <button onclick="openDistillChat('${escJsStr(d.slug)}','${escJsStr(d.name)}')" style="font-size:12px;padding:4px 10px">\u{1F4AC} ${t("test")}</button>
+          <button class="danger" onclick="deleteDistillProfile('${escJsStr(d.slug)}')" style="font-size:12px;padding:4px 10px">\u{1F5D1}</button>
         </div>
       </div>`;
     }).join("");

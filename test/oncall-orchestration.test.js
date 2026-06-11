@@ -142,6 +142,7 @@ describe("handleTrigger orchestration", () => {
       today: fixedToday,
       triggerMessageId: "om_1",
       triggerContent: "hi",
+      threadId: "omt_1",
     }]);
     assert.deepEqual(promptBuildCalls, [{
       intent: "other",
@@ -154,6 +155,7 @@ describe("handleTrigger orchestration", () => {
         fetchFailed: false,
       },
       sessionState: "existing",
+      puaConfig: undefined,
     }]);
     assert.deepEqual(sentPrompts, ["prompt for existing session"]);
     assert.deepEqual(replies, [

@@ -1,3 +1,4 @@
 node_modules/
 .oncall-bot.lock
 distilled/
+data/session-todos.json
