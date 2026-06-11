@@ -162,7 +162,7 @@ This project is licensed under the MIT License. See `LICENSE` for the full text.
 
 ## 中文
 
-如果这个项目对你有帮助，欢迎给仓库点个 Star。
+如果这个项目对你有帮助，欢迎给仓库点个 Star。（其实是求你了🥺，我是互联网乞丐）
 
 ### 概述
 
