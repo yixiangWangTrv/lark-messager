@@ -312,4 +312,40 @@ describe("intent routing", () => {
       reuse: true,
     });
   });
+
+  it("reuses session for same thread when threadId is provided (other intent)", () => {
+    const options = buildSessionOptions({
+      intent: "other",
+      chatId: "oc_chat1",
+      chatName: "Ops Room",
+      today: "2026-06-09",
+      triggerMessageId: "om_200",
+      triggerContent: "follow-up question",
+      threadId: "omt_thread_abc",
+    });
+
+    assert.deepEqual(options, {
+      title: "Ops Room-other-2026-06-09-read_abc",
+      cacheKey: "other:oc_chat1:omt_thread_abc",
+      reuse: true,
+    });
+  });
+
+  it("creates fresh session when no threadId (other intent, top-level message)", () => {
+    const options = buildSessionOptions({
+      intent: "other",
+      chatId: "oc_chat1",
+      chatName: "Ops Room",
+      today: "2026-06-09",
+      triggerMessageId: "om_300",
+      triggerContent: "random question",
+      threadId: null,
+    });
+
+    assert.deepEqual(options, {
+      title: "Ops Room-other-2026-06-09",
+      cacheKey: "other:oc_chat1:om_300",
+      reuse: false,
+    });
+  });
 });
