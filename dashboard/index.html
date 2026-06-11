@@ -78,7 +78,6 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .toggle-info{flex:1;min-width:0}
 .toggle-info .toggle-title{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:2px}
 .toggle-info .toggle-desc{font-size:12px;color:var(--text-secondary);line-height:1.4}
-.trigger-permissions{white-space:pre-line;margin-top:6px}
 .toggle-switch{position:relative;width:44px;height:24px;flex-shrink:0}
 .toggle-switch input{opacity:0;width:0;height:0}
 .toggle-slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:var(--toggle-bg);border-radius:24px;transition:.3s}
@@ -116,24 +115,28 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .msg-role-user{color:var(--accent)}
 .msg-role-assistant{color:var(--success)}
 .msg-loading{text-align:center;color:var(--text-muted);padding:20px;font-style:italic}
-.todo-section{margin-top:20px;padding-top:20px;border-top:1px solid var(--border)}
-.todo-section h5{font-size:13px;color:var(--accent);margin-bottom:12px}
-.todo-create{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
-.todo-create-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
-.todo-status{font-size:12px;color:var(--text-muted)}
-.todo-list{display:flex;flex-direction:column;gap:10px}
-.todo-item{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
-.todo-item.completed{opacity:.8}
-.todo-item.completed .todo-title{text-decoration:line-through}
-.todo-item-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
-.todo-title{font-size:13px;font-weight:600;color:var(--text-primary)}
-.todo-meta{margin-top:6px;font-size:12px;color:var(--text-secondary);display:flex;gap:10px;flex-wrap:wrap}
+.session-actions{display:flex;justify-content:flex-end}
+.table-action-btn{padding:6px 12px;font-size:12px}
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;padding:24px;z-index:50}
+.modal-backdrop.active{display:flex}
+.modal-card{width:min(640px,100%);background:var(--bg-surface);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow);padding:20px}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.modal-header h4{font-size:15px;color:var(--accent)}
+.modal-body{display:flex;flex-direction:column;gap:12px}
+.todo-dialog-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.todo-dialog-status{font-size:12px;color:var(--text-muted)}
+.global-todo-list{display:flex;flex-direction:column;gap:12px}
+.global-todo-item{background:var(--bg-input);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.global-todo-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px}
+.global-todo-title{font-size:14px;font-weight:600;color:var(--text-primary)}
+.global-todo-subtitle{margin-top:4px;font-size:12px;color:var(--text-secondary)}
+.global-todo-meta{margin-top:8px;display:flex;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary)}
 .todo-desc{margin-top:8px;font-size:12px;line-height:1.5;color:var(--text-primary);white-space:pre-wrap}
-.todo-status-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;text-transform:capitalize}
-.todo-status-badge.open{background:rgba(79,195,247,.15);color:var(--accent)}
-.todo-status-badge.completed{background:rgba(76,175,80,.15);color:var(--success)}
-.todo-link-btn{background:transparent;border:1px solid var(--border);color:var(--accent);padding:4px 10px;border-radius:999px;font-size:11px}
-.todo-link-btn:hover{background:var(--accent-bg);opacity:1}
+.global-todo-controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.global-todo-comments{margin-top:12px;display:flex;flex-direction:column;gap:8px}
+.todo-comment{background:var(--bg-surface);border:1px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12px;line-height:1.5}
+.todo-comment-form{display:flex;gap:8px;flex-wrap:wrap}
+.todo-comment-form input{flex:1;min-width:220px}
 button:disabled{opacity:.6;cursor:not-allowed}
 </style>
 </head>
@@ -166,25 +169,44 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <p class="empty">No sessions yet. Waiting for triggers...</p>
       </div>
     </div>
+    <div class="card">
+      <h3>Todos</h3>
+      <div id="globalTodosContent" class="global-todo-list">
+        <p class="empty">No todos yet.</p>
+      </div>
+    </div>
     <div class="session-detail" id="sessionDetail">
       <div class="session-detail-header">
         <h4 id="sessionDetailTitle">Session Messages</h4>
         <button class="session-detail-close" onclick="closeSessionDetail()">&times;</button>
       </div>
-      <div id="sessionMessages" class="msg-list">
-      </div>
-      <div class="todo-section">
-        <h5>Todos</h5>
-        <div class="todo-create">
-          <input type="text" id="sessionTodoTitle" placeholder="Add a todo title" onkeydown="if(event.key==='Enter')createSessionTodo()">
-          <textarea id="sessionTodoDescription" placeholder="Optional description"></textarea>
-          <div class="todo-create-actions">
-            <button id="sessionTodoAddBtn" onclick="createSessionTodo()">Add Todo</button>
-            <span class="todo-status" id="sessionTodoStatus"></span>
-          </div>
+      <div id="sessionMessages" class="msg-list"></div>
+    </div>
+    <div class="modal-backdrop" id="addTodoModal">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h4>Add Todo</h4>
+          <button class="session-detail-close" onclick="closeAddTodoDialog()">&times;</button>
         </div>
-        <div id="sessionTodosList" class="todo-list">
-          <div class="msg-loading">Open a session to load todos.</div>
+        <div class="modal-body">
+          <div class="field-group">
+            <label>Source Session</label>
+            <div id="addTodoSourceSession" class="note">-</div>
+          </div>
+          <div class="field-group">
+            <label for="addTodoTitle">Todo Title</label>
+            <input type="text" id="addTodoTitle" placeholder="Investigate alert burst">
+          </div>
+          <div class="field-group">
+            <label for="addTodoDescription">Todo Description</label>
+            <textarea id="addTodoDescription" placeholder="Describe the follow-up work"></textarea>
+          </div>
+          <div class="todo-dialog-actions">
+            <button class="secondary" id="addTodoSummaryBtn" onclick="generateTodoDraft()">One-click Summary</button>
+            <button id="addTodoCreateBtn" onclick="createGlobalTodo()">Create Todo</button>
+            <button class="secondary" onclick="closeAddTodoDialog()">Cancel</button>
+            <span class="todo-dialog-status" id="addTodoStatus"></span>
+          </div>
         </div>
       </div>
     </div>
@@ -456,7 +478,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <div class="toggle-info">
           <div class="toggle-title">@Bot Mention <span class="badge badge-safe">Recommended</span></div>
           <div class="toggle-desc">Bot responds when someone @mentions it directly in a group chat.</div>
-          <div class="note trigger-permissions" id="mentionBotPermissions"></div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="modeMentionBot" onchange="onToggleChange()">
@@ -469,7 +490,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <div class="toggle-info">
           <div class="toggle-title">@Owner Mention</div>
           <div class="toggle-desc">Bot responds when someone @mentions you (the owner) in a group where the bot is present.</div>
-          <div class="note trigger-permissions" id="mentionOwnerPermissions"></div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="modeMentionOwner" onchange="onToggleChange()">
@@ -482,7 +502,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <div class="toggle-info">
           <div class="toggle-title">All Messages <span class="badge badge-warn">Caution</span></div>
           <div class="toggle-desc">Bot responds to every message in group chats. High volume — use carefully.</div>
-          <div class="note trigger-permissions" id="allMessagesPermissions"></div>
         </div>
         <label class="toggle-switch" onclick="event.stopPropagation()">
           <input type="checkbox" id="modeAllMessages" onchange="onToggleChange()">
@@ -552,23 +571,10 @@ let intentRouting={};
 let currentIntent="summary";
 let evtSource=null;
 let currentSessionDetailId=null;
-let currentSessionDetailMeta=null;
 let currentSessionsById={};
 let knowledgeBaseState={enabled:true,items:[]};
-const TRIGGER_MODE_PERMISSION_HINTS={
-  mention_bot:{
-    required:["im:message.group_at_msg"],
-    optional:["im:message"],
-  },
-  mention_owner:{
-    required:["im:message.group_at_msg"],
-    optional:["contact:user.base:readonly"],
-  },
-  all_messages:{
-    required:["im:message"],
-    optional:["im:message.group_at_msg"],
-  },
-};
+let addTodoSourceSession=null;
+let globalTodos=[];
 
 // Tab switching
 document.querySelectorAll(".tab").forEach(t=>{
@@ -653,6 +659,10 @@ async function init(){
   }catch(e){console.error("sessions",e)}
 
   try{
+    await loadTodos();
+  }catch(e){console.error("todos",e)}
+
+  try{
     const servers=await api("/api/servers");
     renderServers(servers);
   }catch(e){console.error("servers",e)}
@@ -686,7 +696,6 @@ async function init(){
   }catch(e){console.error("config",e)}
 
   await loadTriggerModes();
-  renderTriggerPermissionHints();
   refreshUILang();
   await loadPuaMode();
   await loadDistilledList();
@@ -705,9 +714,10 @@ function renderSessions(sessions){
     el.innerHTML='<p class="empty">No sessions yet. Waiting for triggers...</p>';
     return;
   }
-  let html='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th></tr></thead><tbody>';
-  for(const s of sessions){
-    html+=`<tr class="session-row" onclick="openSessionDetail('${escJsStr(s.sessionId)}','${escJsStr(s.title||s.sessionId)}')"><td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td></tr>`;
+  const ordered=[...sessions].sort((a,b)=>String(b.createdAt||"").localeCompare(String(a.createdAt||"")));
+  let html='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+  for(const s of ordered){
+    html+=`<tr class="session-row"><td onclick="openSessionDetail('${escJsStr(s.sessionId)}','${escJsStr(s.title||s.sessionId)}')">${esc(s.title||s.sessionId)}</td><td onclick="openSessionDetail('${escJsStr(s.sessionId)}','${escJsStr(s.title||s.sessionId)}')">${esc(s.chatName||"-")}</td><td onclick="openSessionDetail('${escJsStr(s.sessionId)}','${escJsStr(s.title||s.sessionId)}')">${esc(s.intent||"-")}</td><td onclick="openSessionDetail('${escJsStr(s.sessionId)}','${escJsStr(s.title||s.sessionId)}')">${esc(s.createdAt||"-")}</td><td class="session-actions"><button class="secondary table-action-btn" onclick="event.stopPropagation();openAddTodoDialog('${escJsStr(s.sessionId)}')">Add Todo</button></td></tr>`;
   }
   html+='</tbody></table>';
   el.innerHTML=html;
@@ -743,8 +753,6 @@ const i18n={
     mentionOwnerDesc:"Bot responds when someone @mentions you (the owner) in a group where the bot is present.",
     allMsgTitle:"All Messages",
     allMsgDesc:"Bot responds to every message in group chats. High volume — use carefully.",
-    requiredPermissions:"Required",
-    optionalPermissions:"Optional",
     recommended:"Recommended",
     caution:"Caution",
     saveTriggerModes:"Save Trigger Modes",
@@ -831,8 +839,6 @@ const i18n={
     mentionOwnerDesc:"\u6709\u4eba\u5728\u673a\u5668\u4eba\u6240\u5728\u7fa4\u91cc @\u4f60 \u65f6\u89e6\u53d1\u3002",
     allMsgTitle:"\u6240\u6709\u6d88\u606f",
     allMsgDesc:"\u7fa4\u91cc\u6240\u6709\u6d88\u606f\u90fd\u89e6\u53d1\uff0c\u8c28\u614e\u4f7f\u7528\u3002",
-    requiredPermissions:"\u5fc5\u9700\u6743\u9650",
-    optionalPermissions:"\u53ef\u9009\u6743\u9650",
     recommended:"\u63a8\u8350",
     caution:"\u8c28\u614e",
     saveTriggerModes:"\u4fdd\u5b58\u89e6\u53d1\u6a21\u5f0f",
@@ -918,8 +924,6 @@ const i18n={
     mentionOwnerDesc:"Bot merespons saat seseorang @mention Anda di grup yang ada bot.",
     allMsgTitle:"Semua Pesan",
     allMsgDesc:"Bot merespons setiap pesan di grup. Volume tinggi \u2014 gunakan hati-hati.",
-    requiredPermissions:"Perlu",
-    optionalPermissions:"Opsional",
     recommended:"Direkomendasikan",
     caution:"Hati-hati",
     saveTriggerModes:"Simpan Mode Trigger",
@@ -1003,8 +1007,6 @@ const i18n={
     mentionOwnerDesc:"I bot na-queta ir @le peth si hoth-chat.",
     allMsgTitle:"Ilya Quettar",
     allMsgDesc:"I bot na-queta na ilya quetta. R\u00edm \u2014 tiro-le.",
-    requiredPermissions:"Maer Bae",
-    optionalPermissions:"Ecet",
     recommended:"Estellennen",
     caution:"Tirniel",
     saveTriggerModes:"Harya Lenn\u00eb Orthor",
@@ -1105,7 +1107,6 @@ function refreshUILang(){
   if(allTitle)allTitle.innerHTML=`${t("allMsgTitle")} <span class="badge badge-warn">${t("caution")}</span>`;
   const allDesc=document.querySelector("#cardAllMessages .toggle-desc");
   if(allDesc)allDesc.textContent=t("allMsgDesc");
-  renderTriggerPermissionHints();
   // Save trigger modes button
   const saveTmBtn=document.querySelector("#panel-settings .card:first-child button");
   if(saveTmBtn)saveTmBtn.textContent=t("saveTriggerModes");
@@ -1503,31 +1504,6 @@ function onToggleChange(){
   updateToggleCards();
 }
 
-function formatTriggerPermissionHints(hints){
-  if(!hints)return "";
-  const lines=[];
-  if(Array.isArray(hints.required)&&hints.required.length){
-    lines.push(`${t("requiredPermissions")}: ${hints.required.join(", ")}`);
-  }
-  if(Array.isArray(hints.optional)&&hints.optional.length){
-    lines.push(`${t("optionalPermissions")}: ${hints.optional.join(", ")}`);
-  }
-  return lines.join("\n");
-}
-
-function renderTriggerPermissionHints(){
-  const targets=[
-    ["mentionBotPermissions","mention_bot"],
-    ["mentionOwnerPermissions","mention_owner"],
-    ["allMessagesPermissions","all_messages"],
-  ];
-  for(const [elementId,modeKey] of targets){
-    const el=document.getElementById(elementId);
-    if(!el)continue;
-    el.textContent=formatTriggerPermissionHints(TRIGGER_MODE_PERMISSION_HINTS[modeKey]);
-  }
-}
-
 function updateToggleCards(){
   const pairs=[
     ["modeMentionBot","cardMentionBot"],
@@ -1589,39 +1565,17 @@ function connectSSE(){
 
 function addSessionRow(s){
   currentSessionsById[s.sessionId]=s;
-  const el=document.getElementById("sessionsContent");
-  let tbody=el.querySelector("tbody");
-  if(!tbody){
-    el.innerHTML='<table><thead><tr><th>Session</th><th>Chat</th><th>Intent</th><th>Created</th></tr></thead><tbody></tbody></table>';
-    tbody=el.querySelector("tbody");
-  }
-  const tr=document.createElement("tr");
-  tr.className="highlight-row session-row";
-  tr.onclick=()=>openSessionDetail(s.sessionId,s.title||s.sessionId);
-  tr.innerHTML=`<td>${esc(s.title||s.sessionId)}</td><td>${esc(s.chatName||"-")}</td><td>${esc(s.intent||"-")}</td><td>${esc(s.createdAt||"-")}</td>`;
-  tbody.insertBefore(tr,tbody.firstChild);
+  renderSessions(Object.values(currentSessionsById));
 }
 
 // Session detail view
 async function openSessionDetail(sessionId,title,meta={}){
   const panel=document.getElementById("sessionDetail");
   const msgEl=document.getElementById("sessionMessages");
-  const todoStatusEl=document.getElementById("sessionTodoStatus");
-  const todoTitleEl=document.getElementById("sessionTodoTitle");
-  const todoDescEl=document.getElementById("sessionTodoDescription");
-  const addBtn=document.getElementById("sessionTodoAddBtn");
   currentSessionDetailId=sessionId;
-  currentSessionDetailMeta={...(currentSessionsById[sessionId]||{}),...meta};
   document.getElementById("sessionDetailTitle").textContent=title;
   panel.classList.add("active");
   msgEl.innerHTML='<div class="msg-loading">Loading messages...</div>';
-  todoTitleEl.value="";
-  todoDescEl.value="";
-  todoTitleEl.disabled=false;
-  todoDescEl.disabled=false;
-  addBtn.disabled=false;
-  todoStatusEl.textContent="";
-  renderSessionTodosLoading();
 
   const messagePromise=(async()=>{
     try{
@@ -1648,118 +1602,125 @@ async function openSessionDetail(sessionId,title,meta={}){
     }
   })();
 
-  const todoPromise=loadSessionTodos(sessionId);
-  await Promise.allSettled([messagePromise,todoPromise]);
+  await Promise.allSettled([messagePromise]);
 }
 
 function closeSessionDetail(){
   currentSessionDetailId=null;
-  currentSessionDetailMeta=null;
   document.getElementById("sessionDetail").classList.remove("active");
 }
 
-function renderSessionTodosLoading(){
-  document.getElementById("sessionTodosList").innerHTML='<div class="msg-loading">Loading todos...</div>';
+function openAddTodoDialog(sessionId){
+  addTodoSourceSession=currentSessionsById[sessionId]||null;
+  if(!addTodoSourceSession)return;
+  document.getElementById("addTodoModal").classList.add("active");
+  document.getElementById("addTodoSourceSession").textContent=addTodoSourceSession.title||addTodoSourceSession.sessionId;
+  document.getElementById("addTodoTitle").value="";
+  document.getElementById("addTodoDescription").value="";
+  document.getElementById("addTodoStatus").textContent="";
+  document.getElementById("addTodoSummaryBtn").disabled=false;
+  document.getElementById("addTodoCreateBtn").disabled=false;
 }
 
-function renderSessionTodos(todos){
-  const el=document.getElementById("sessionTodosList");
-  const titleEl=document.getElementById("sessionTodoTitle");
-  const descEl=document.getElementById("sessionTodoDescription");
-  const addBtn=document.getElementById("sessionTodoAddBtn");
-  const statusEl=document.getElementById("sessionTodoStatus");
-  const nestedTodoSession=!!currentSessionDetailMeta?.todoParentSessionId;
-  if(nestedTodoSession){
-    titleEl.disabled=true;
-    descEl.disabled=true;
-    addBtn.disabled=true;
-    if(!statusEl.textContent){
-      statusEl.textContent="Nested todos are not supported for todo sessions.";
-      statusEl.style.color="var(--text-muted)";
-    }
+function closeAddTodoDialog(){
+  addTodoSourceSession=null;
+  document.getElementById("addTodoModal").classList.remove("active");
+}
+
+async function loadTodos(){
+  try{
+    globalTodos=await api("/api/todos");
+    renderGlobalTodos(globalTodos);
+  }catch(e){
+    document.getElementById("globalTodosContent").innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
   }
+}
+
+function renderGlobalTodos(todos){
+  const el=document.getElementById("globalTodosContent");
   if(!todos.length){
-    el.innerHTML='<div class="msg-loading">No todos for this session yet.</div>';
+    el.innerHTML='<p class="empty">No todos yet.</p>';
     return;
   }
   let html="";
   for(const todo of todos){
-    const completed=todo.status==="completed";
-    const completeBtn=completed?"":`<button class="secondary" onclick="completeTodo('${escJsStr(todo.id)}')">Complete</button>`;
-    const desc=todo.description?`<div class="todo-desc">${esc(todo.description)}</div>`:"";
-    const status=todo.status||"open";
-    const openTodoSessionBtn=todo.todoSessionId
-      ?`<button class="todo-link-btn" onclick="openSessionDetail('${escJsStr(todo.todoSessionId)}','${escJsStr(`Todo: ${todo.title}`)}',{todoParentSessionId:'${escJsStr(currentSessionDetailId)}'})">Open Todo Session</button>`
-      :"";
-    html+=`<div class="todo-item ${completed?"completed":""}">`;
-    html+=`<div class="todo-item-header"><div><div class="todo-title">${esc(todo.title)}</div><div class="todo-meta"><span class="todo-status-badge ${status==="completed"?"completed":"open"}">${esc(status)}</span><span>Created: ${esc(todo.createdAt||"-")}</span>${openTodoSessionBtn}</div>${desc}</div>${completeBtn}</div>`;
-    html+=`</div>`;
+    const comments=(todo.comments||[]).map(comment=>`<div class="todo-comment">${esc(comment.content)}<div class="note">${esc(comment.createdAt)}</div></div>`).join("")||'<div class="note">No comments yet.</div>';
+    html+=`<div class="global-todo-item"><div class="global-todo-header"><div><div class="global-todo-title">${esc(todo.title)}</div><div class="global-todo-subtitle">Source: ${esc(todo.sourceSessionTitle||todo.sourceSessionId||"-")}</div><div class="todo-desc">${esc(todo.description||"")}</div><div class="global-todo-meta"><span>ID: ${esc(todo.id)}</span><span>Updated: ${esc(todo.updatedAt||todo.createdAt||"-")}</span></div></div><div class="global-todo-controls"><select onchange="updateTodoStatus('${escJsStr(todo.id)}', this.value)"><option value="open" ${todo.status==="open"?"selected":""}>open</option><option value="in_progress" ${todo.status==="in_progress"?"selected":""}>in_progress</option><option value="blocked" ${todo.status==="blocked"?"selected":""}>blocked</option><option value="completed" ${todo.status==="completed"?"selected":""}>completed</option></select><button class="secondary" onclick="openTodoChat('${escJsStr(todo.id)}')">Chat</button><button class="danger" onclick="deleteTodo('${escJsStr(todo.id)}')">Delete</button></div></div><div class="global-todo-comments">${comments}<div class="todo-comment-form"><input type="text" id="commentInput_${escAttr(todo.id)}" placeholder="Add comment"><button class="secondary" onclick="addTodoComment('${escJsStr(todo.id)}')">Add Comment</button></div></div></div>`;
   }
   el.innerHTML=html;
 }
 
-async function loadSessionTodos(sessionId){
+async function generateTodoDraft(){
+  if(!addTodoSourceSession)return;
+  const statusEl=document.getElementById("addTodoStatus");
+  const summaryBtn=document.getElementById("addTodoSummaryBtn");
+  summaryBtn.disabled=true;
+  statusEl.textContent="Generating summary...";
+  statusEl.style.color="var(--text-muted)";
   try{
-    const todos=await api(`/api/sessions/${encodeURIComponent(sessionId)}/todos`);
-    if(currentSessionDetailId!==sessionId)return;
-    renderSessionTodos(todos);
+    const draft=await api(`/api/sessions/${encodeURIComponent(addTodoSourceSession.sessionId)}/todo-draft`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
+    document.getElementById("addTodoTitle").value=draft.suggestedTitle||"";
+    document.getElementById("addTodoDescription").value=draft.suggestedDescription||"";
+    statusEl.textContent="Summary ready. Review and create the todo.";
+    statusEl.style.color="var(--success)";
   }catch(e){
-    if(currentSessionDetailId!==sessionId)return;
-    document.getElementById("sessionTodosList").innerHTML=`<div class="msg-loading">Error: ${esc(e.message)}</div>`;
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }finally{
+    summaryBtn.disabled=false;
   }
 }
 
-async function createSessionTodo(){
-  const sessionId=currentSessionDetailId;
-  if(!sessionId)return;
-  const titleEl=document.getElementById("sessionTodoTitle");
-  const descEl=document.getElementById("sessionTodoDescription");
-  const statusEl=document.getElementById("sessionTodoStatus");
-  const addBtn=document.getElementById("sessionTodoAddBtn");
-  const title=titleEl.value.trim();
-  const description=descEl.value.trim();
+async function createGlobalTodo(){
+  if(!addTodoSourceSession)return;
+  const title=document.getElementById("addTodoTitle").value.trim();
+  const description=document.getElementById("addTodoDescription").value.trim();
+  const statusEl=document.getElementById("addTodoStatus");
+  const createBtn=document.getElementById("addTodoCreateBtn");
   if(!title){
     statusEl.textContent="Title required.";
     statusEl.style.color="var(--danger)";
     return;
   }
-  addBtn.disabled=true;
+  createBtn.disabled=true;
   statusEl.textContent="Creating todo...";
   statusEl.style.color="var(--text-muted)";
   try{
-    await api(`/api/sessions/${encodeURIComponent(sessionId)}/todos`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({title,description})});
-    if(currentSessionDetailId!==sessionId)return;
-    titleEl.value="";
-    descEl.value="";
-    statusEl.textContent="Todo created.";
-    statusEl.style.color="var(--success)";
-    await loadSessionTodos(sessionId);
+    await api("/api/todos",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({sourceSessionId:addTodoSourceSession.sessionId,title,description})});
+    await loadTodos();
+    closeAddTodoDialog();
   }catch(e){
-    if(currentSessionDetailId!==sessionId)return;
     statusEl.textContent=`Error: ${e.message}`;
     statusEl.style.color="var(--danger)";
   }finally{
-    addBtn.disabled=false;
+    createBtn.disabled=false;
   }
 }
 
-async function completeTodo(todoId){
-  const sessionId=currentSessionDetailId;
-  if(!sessionId)return;
-  const statusEl=document.getElementById("sessionTodoStatus");
-  statusEl.textContent="Completing todo...";
-  statusEl.style.color="var(--text-muted)";
-  try{
-    await api(`/api/todos/${encodeURIComponent(todoId)}/complete`,{method:"POST"});
-    if(currentSessionDetailId!==sessionId)return;
-    statusEl.textContent="Todo completed.";
-    statusEl.style.color="var(--success)";
-    await loadSessionTodos(sessionId);
-  }catch(e){
-    if(currentSessionDetailId!==sessionId)return;
-    statusEl.textContent=`Error: ${e.message}`;
-    statusEl.style.color="var(--danger)";
-  }
+async function updateTodoStatus(todoId,status){
+  await api(`/api/todos/${encodeURIComponent(todoId)}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})});
+  await loadTodos();
+}
+
+async function addTodoComment(todoId){
+  const input=document.getElementById(`commentInput_${todoId}`);
+  const content=input.value.trim();
+  if(!content)return;
+  await api(`/api/todos/${encodeURIComponent(todoId)}/comments`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({content})});
+  await loadTodos();
+}
+
+async function deleteTodo(todoId){
+  if(!confirm("Delete this todo?"))return;
+  await api(`/api/todos/${encodeURIComponent(todoId)}`,{method:"DELETE"});
+  await loadTodos();
+}
+
+async function openTodoChat(todoId){
+  const data=await api(`/api/todos/${encodeURIComponent(todoId)}/chat-session`,{method:"POST"});
+  await loadTodos();
+  const todo=globalTodos.find(item=>item.id===todoId);
+  openSessionDetail(data.chatSessionId, `Todo: ${todo?.title||todoId}`);
 }
 
 // PUA Mode

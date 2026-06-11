@@ -594,18 +594,6 @@ process.stdout.write(JSON.stringify({ ok: true, data: { messages } }));
     assert.ok(html.includes("Settings"));
   });
 
-  it("GET / includes trigger mode permission hint labels and containers", async () => {
-    const res = await fetch(`${baseUrl}/`);
-    assert.equal(res.status, 200);
-
-    const html = await res.text();
-    assert.match(html, /requiredPermissions:"Required"/);
-    assert.match(html, /optionalPermissions:"Optional"/);
-    assert.match(html, /id="mentionBotPermissions"/);
-    assert.match(html, /id="mentionOwnerPermissions"/);
-    assert.match(html, /id="allMessagesPermissions"/);
-  });
-
   it("GET / orders Knowledge Base tab between Sessions and Distill and escapes source input values for attributes", async () => {
     const res = await fetch(`${baseUrl}/`);
     const html = await res.text();
@@ -627,262 +615,328 @@ process.stdout.write(JSON.stringify({ ok: true, data: { messages } }));
     assert.ok(!html.includes('value="${esc(values.path)}"'));
   });
 
-  it("GET /api/sessions/:id/todos returns [] initially", async () => {
-    const res = await fetch(`${baseUrl}/api/sessions/session-1/todos`);
+  it("GET / renders an Actions column and add-todo button hooks in the sessions table", async () => {
+    const res = await fetch(`${baseUrl}/`);
+    const html = await res.text();
+
+    assert.ok(html.includes("<th>Actions</th>"));
+    assert.ok(html.includes("openAddTodoDialog"));
+    assert.ok(html.includes("globalTodosContent"));
+  });
+
+  it("GET / no longer renders the old session-detail todo form", async () => {
+    const res = await fetch(`${baseUrl}/`);
+    const html = await res.text();
+
+    assert.equal(html.includes("sessionTodoTitle"), false);
+    assert.equal(html.includes("sessionTodoDescription"), false);
+    assert.equal(html.includes("sessionTodosList"), false);
+  });
+
+  it("GET /api/todos returns an empty array initially", async () => {
+    const res = await fetch(`${baseUrl}/api/todos`);
 
     assert.equal(res.status, 200);
     assert.deepEqual(await res.json(), []);
   });
 
-  it("POST /api/sessions/:id/todos creates todo with dedicated OpenCode session", async () => {
+  it("POST /api/todos creates a global todo without creating a chat session", async () => {
     botEvents.emit("session:created", {
       sessionId: "session-1",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "common_task",
+      createdAt: new Date().toISOString(),
+    });
+
+    const res = await fetch(`${baseUrl}/api/todos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceSessionId: "session-1",
+        title: "Investigate alert burst",
+        description: "Check the upstream spike pattern.",
+      }),
+    });
+
+    assert.equal(res.status, 201);
+    const todo = await res.json();
+    assert.equal(todo.sourceSessionId, "session-1");
+    assert.equal(todo.sourceSessionTitle, "Robot Test-other-2026-06-11-3495402b");
+    assert.equal(todo.status, "open");
+    assert.equal(todo.chatSessionId, null);
+    assert.deepEqual(currentClientCalls, []);
+    assert.deepEqual(constructorClientCalls, []);
+  });
+
+  it("PATCH /api/todos/:id updates status", async () => {
+    botEvents.emit("session:created", {
+      sessionId: "session-2",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
       intent: "other",
       createdAt: new Date().toISOString(),
     });
 
-    const res = await fetch(`${baseUrl}/api/sessions/session-1/todos`, {
+    const createdRes = await fetch(`${baseUrl}/api/todos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
+        sourceSessionId: "session-2",
         title: "Investigate alert burst",
-        description: "Look into the upstream spikes",
+        description: "",
       }),
+    });
+    const created = await createdRes.json();
+
+    const res = await fetch(`${baseUrl}/api/todos/${created.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "blocked" }),
     });
 
     assert.equal(res.status, 200);
-    const data = await res.json();
-    assert.equal(data.parentSessionId, "session-1");
-    assert.equal(data.title, "Investigate alert burst");
-    assert.equal(data.description, "Look into the upstream spikes");
-    assert.equal(data.status, "open");
-    assert.equal(data.todoSessionId, "todo-session-current");
-    assert.match(data.id, /^todo_/);
-
-    assert.deepEqual(currentClientCalls.pop(), {
-      title: "TODO Ops Room-other-2026-06-11 - Investigate alert burst",
-      cacheKey: "todo:session-1:Investigate alert burst",
-      reuse: false,
-    });
-    assert.equal(constructorClientCalls.length, 0);
+    const updated = await res.json();
+    assert.equal(updated.status, "blocked");
   });
 
-  it("POST /api/sessions/:id/todos registers the created child session in the dashboard session list", async () => {
+  it("POST /api/todos/:id/comments persists a comment without creating a chat session", async () => {
     botEvents.emit("session:created", {
-      sessionId: "session-parent",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
+      sessionId: "session-3",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "common_task",
       createdAt: new Date().toISOString(),
     });
 
-    const firstRes = await fetch(`${baseUrl}/api/sessions/session-parent/todos`, {
+    const createdRes = await fetch(`${baseUrl}/api/todos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: "Parent task",
+        sourceSessionId: "session-3",
+        title: "Investigate alert burst",
+        description: "",
       }),
     });
+    const created = await createdRes.json();
 
-    assert.equal(firstRes.status, 200);
-    const firstTodo = await firstRes.json();
-    assert.equal(firstTodo.todoSessionId, "todo-session-current");
-
-    const sessionsRes = await fetch(`${baseUrl}/api/sessions`);
-    assert.equal(sessionsRes.status, 200);
-    const sessions = await sessionsRes.json();
-    assert.ok(sessions.some((session) => session.sessionId === "todo-session-current"));
-
-    const nestedRes = await fetch(`${baseUrl}/api/sessions/${firstTodo.todoSessionId}/todos`, {
+    const res = await fetch(`${baseUrl}/api/todos/${created.id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: "Nested task",
-      }),
+      body: JSON.stringify({ content: "Need to compare queue growth." }),
     });
 
-    assert.equal(nestedRes.status, 400);
-    assert.deepEqual(await nestedRes.json(), { error: "nested todos are not supported" });
-
-    assert.deepEqual(currentClientCalls, [
-      {
-        title: "TODO Ops Room-other-2026-06-11 - Parent task",
-        cacheKey: "todo:session-parent:Parent task",
-        reuse: false,
-      },
-    ]);
+    assert.equal(res.status, 201);
+    const comment = await res.json();
+    assert.equal(comment.content, "Need to compare queue growth.");
+    assert.deepEqual(currentClientCalls, []);
   });
 
-  it("POST /api/sessions/:id/todos does not persist todo when todo session creation fails", async () => {
+  it("DELETE /api/todos/:id removes a todo", async () => {
     botEvents.emit("session:created", {
-      sessionId: "session-fail",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
+      sessionId: "session-4",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "common_task",
       createdAt: new Date().toISOString(),
     });
-    currentClientError = new Error("session creation failed");
 
-    const createRes = await fetch(`${baseUrl}/api/sessions/session-fail/todos`, {
+    const createdRes = await fetch(`${baseUrl}/api/todos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: "This should not persist",
+        sourceSessionId: "session-4",
+        title: "Investigate alert burst",
+        description: "",
       }),
     });
+    const created = await createdRes.json();
 
-    assert.equal(createRes.status, 500);
-    assert.deepEqual(await createRes.json(), { error: "session creation failed" });
+    const deleteRes = await fetch(`${baseUrl}/api/todos/${created.id}`, {
+      method: "DELETE",
+    });
 
-    const listRes = await fetch(`${baseUrl}/api/sessions/session-fail/todos`);
-    assert.equal(listRes.status, 200);
+    assert.equal(deleteRes.status, 200);
+    assert.equal((await deleteRes.json()).id, created.id);
+
+    const listRes = await fetch(`${baseUrl}/api/todos`);
     assert.deepEqual(await listRes.json(), []);
   });
 
-  it("POST /api/sessions/:id/todos returns 404 for unknown parent session", async () => {
-    const res = await fetch(`${baseUrl}/api/sessions/unknown-session/todos`, {
+  it("POST /api/sessions/:id/todo-draft returns suggested title and description", async () => {
+    botEvents.emit("session:created", {
+      sessionId: "session-draft",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "other",
+      createdAt: new Date().toISOString(),
+    });
+
+    server.setOpenCodeClient({
+      async findOrCreateSession(options) {
+        currentClientCalls.push(options);
+        return { sessionId: "draft-session-1", sessionState: "new" };
+      },
+      async sendMessage(sessionId, prompt) {
+        assert.equal(sessionId, "draft-session-1");
+        assert.match(prompt, /suggestedTitle/i);
+        return JSON.stringify({
+          suggestedTitle: "Investigate alert burst",
+          suggestedDescription: "Check the upstream spike pattern and summarize likely causes.",
+        });
+      },
+    });
+
+    const res = await fetch(`${baseUrl}/api/sessions/session-draft/todo-draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), {
+      suggestedTitle: "Investigate alert burst",
+      suggestedDescription: "Check the upstream spike pattern and summarize likely causes.",
+      draftSessionId: "draft-session-1",
+    });
+  });
+
+  it("POST /api/todos/:id/chat-session lazily creates and persists a chat session", async () => {
+    botEvents.emit("session:created", {
+      sessionId: "session-chat",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "other",
+      createdAt: new Date().toISOString(),
+    });
+
+    const createdTodoRes = await fetch(`${baseUrl}/api/todos`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        title: "Should fail",
+        sourceSessionId: "session-chat",
+        title: "Investigate alert burst",
+        description: "",
       }),
     });
+    const todo = await createdTodoRes.json();
 
-    assert.equal(res.status, 404);
-    assert.deepEqual(await res.json(), { error: "session not found" });
-    assert.equal(currentClientCalls.length, 0);
-    assert.equal(constructorClientCalls.length, 0);
-  });
-
-  it("POST /api/sessions/:id/todos returns 400 for invalid JSON body", async () => {
-    botEvents.emit("session:created", {
-      sessionId: "session-invalid-json",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
-      createdAt: new Date().toISOString(),
+    server.setOpenCodeClient({
+      async findOrCreateSession(options) {
+        currentClientCalls.push(options);
+        return { sessionId: "todo-chat-1", sessionState: "new" };
+      },
     });
 
-    const res = await fetch(`${baseUrl}/api/sessions/session-invalid-json/todos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: "{",
-    });
-
-    assert.equal(res.status, 400);
-    assert.match((await res.json()).error, /JSON|Unexpected end of JSON input/);
-    assert.equal(currentClientCalls.length, 0);
-    assert.equal(constructorClientCalls.length, 0);
-  });
-
-  it("POST /api/sessions/:id/todos returns 400 for valid JSON bodies that are not plain objects", async () => {
-    botEvents.emit("session:created", {
-      sessionId: "session-non-object-json",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
-      createdAt: new Date().toISOString(),
-    });
-
-    for (const body of [null, "todo", 42, ["todo"]]) {
-      const res = await fetch(`${baseUrl}/api/sessions/session-non-object-json/todos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-
-      assert.equal(res.status, 400);
-      assert.deepEqual(await res.json(), { error: "body must be a JSON object" });
-    }
-
-    assert.equal(currentClientCalls.length, 0);
-    assert.equal(constructorClientCalls.length, 0);
-  });
-
-  it("POST /api/sessions/:id/todos returns 400 for invalid title field values in otherwise valid objects", async () => {
-    botEvents.emit("session:created", {
-      sessionId: "session-invalid-title-field",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
-      createdAt: new Date().toISOString(),
-    });
-
-    for (const title of [123, "   "]) {
-      const res = await fetch(`${baseUrl}/api/sessions/session-invalid-title-field/todos`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title,
-          description: "still valid",
-        }),
-      });
-
-      assert.equal(res.status, 400);
-      assert.deepEqual(await res.json(), { error: "title required" });
-    }
-
-    assert.equal(currentClientCalls.length, 0);
-    assert.equal(constructorClientCalls.length, 0);
-  });
-
-  it("POST /api/sessions/:id/todos returns 400 for non-string description in otherwise valid objects", async () => {
-    botEvents.emit("session:created", {
-      sessionId: "session-invalid-description-field",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
-      createdAt: new Date().toISOString(),
-    });
-
-    const res = await fetch(`${baseUrl}/api/sessions/session-invalid-description-field/todos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: "Valid title",
-        description: 123,
-      }),
-    });
-
-    assert.equal(res.status, 400);
-    assert.deepEqual(await res.json(), { error: "description must be a string" });
-    assert.equal(currentClientCalls.length, 0);
-    assert.equal(constructorClientCalls.length, 0);
-  });
-
-  it("POST /api/todos/:todoId/complete marks todo completed", async () => {
-    botEvents.emit("session:created", {
-      sessionId: "session-2",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
-      createdAt: new Date().toISOString(),
-    });
-
-    const createRes = await fetch(`${baseUrl}/api/sessions/session-2/todos`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: "Close the loop" }),
-    });
-    const created = await createRes.json();
-
-    const res = await fetch(`${baseUrl}/api/todos/${created.id}/complete`, {
+    const res = await fetch(`${baseUrl}/api/todos/${todo.id}/chat-session`, {
       method: "POST",
     });
 
     assert.equal(res.status, 200);
-    const completed = await res.json();
-    assert.equal(completed.id, created.id);
-    assert.equal(completed.status, "completed");
-    assert.ok(completed.completedAt);
+    assert.deepEqual(await res.json(), {
+      todoId: todo.id,
+      chatSessionId: "todo-chat-1",
+      created: true,
+    });
+    assert.deepEqual(currentClientCalls, [{
+      title: `Investigate alert burst ${todo.id}`,
+      cacheKey: `todo-chat:${todo.id}`,
+      reuse: false,
+    }]);
   });
 
-  it("stores todos under data/session-todos.json by default when todoStorePath is not injected", async () => {
+  it("POST /api/todos/:id/chat-session reuses an existing chat session id", async () => {
+    botEvents.emit("session:created", {
+      sessionId: "session-chat-existing",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "other",
+      createdAt: new Date().toISOString(),
+    });
+
+    const createdTodoRes = await fetch(`${baseUrl}/api/todos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceSessionId: "session-chat-existing",
+        title: "Investigate alert burst",
+        description: "",
+      }),
+    });
+    const todo = await createdTodoRes.json();
+
+    server.setOpenCodeClient({
+      async findOrCreateSession(options) {
+        currentClientCalls.push(options);
+        return { sessionId: "todo-chat-1", sessionState: "new" };
+      },
+    });
+
+    await fetch(`${baseUrl}/api/todos/${todo.id}/chat-session`, { method: "POST" });
+    currentClientCalls.length = 0;
+
+    const res = await fetch(`${baseUrl}/api/todos/${todo.id}/chat-session`, {
+      method: "POST",
+    });
+
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), {
+      todoId: todo.id,
+      chatSessionId: "todo-chat-1",
+      created: false,
+    });
+    assert.deepEqual(currentClientCalls, []);
+  });
+
+  it("POST /api/todos/:id/comments mirrors the comment into the todo chat session when linked", async () => {
+    botEvents.emit("session:created", {
+      sessionId: "session-comment",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "other",
+      createdAt: new Date().toISOString(),
+    });
+
+    const createdTodoRes = await fetch(`${baseUrl}/api/todos`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sourceSessionId: "session-comment",
+        title: "Investigate alert burst",
+        description: "",
+      }),
+    });
+    const todo = await createdTodoRes.json();
+
+    const submitCalls = [];
+    server.setOpenCodeClient({
+      async findOrCreateSession() {
+        return { sessionId: "todo-chat-comment", sessionState: "new" };
+      },
+      async submitMessage(sessionId, prompt) {
+        submitCalls.push({ sessionId, prompt });
+        return { sessionId, submittedAt: Date.now(), userMessageId: "msg-1" };
+      },
+    });
+
+    await fetch(`${baseUrl}/api/todos/${todo.id}/chat-session`, { method: "POST" });
+
+    const res = await fetch(`${baseUrl}/api/todos/${todo.id}/comments`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: "Need to compare queue growth." }),
+    });
+
+    assert.equal(res.status, 201);
+    assert.equal(submitCalls.length, 1);
+    assert.equal(submitCalls[0].sessionId, "todo-chat-comment");
+    assert.match(submitCalls[0].prompt, /Need to compare queue growth\./);
+  });
+
+  it("stores todos under data/todos.json by default when todoStorePath is not injected", async () => {
     const isolatedEvents = new EventEmitter();
     const configPath = join(tempDir, "default-store-config.json");
-    const defaultTodoStorePath = join(process.cwd(), "data", "session-todos.json");
+    const defaultTodoStorePath = join(process.cwd(), "data", "todos.json");
     const isolatedServer = new DashboardServer({
       config: { ...config, dashboard: { ...config.dashboard, port: nextPort++ } },
       botEvents: isolatedEvents,
@@ -892,18 +946,17 @@ process.stdout.write(JSON.stringify({ ok: true, data: { messages } }));
 
     isolatedEvents.emit("session:created", {
       sessionId: "session-default-store",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "common_task",
       createdAt: new Date().toISOString(),
     });
 
-    await isolatedServer._createTodoSession("session-default-store", "Use default path");
     isolatedServer._todoStore.create({
-      parentSessionId: "session-default-store",
+      sourceSessionId: "session-default-store",
+      sourceSessionTitle: "Robot Test-other-2026-06-11-3495402b",
       title: "Use default path",
       description: "",
-      todoSessionId: "todo-session-constructor",
     });
 
     assert.equal(existsSync(defaultTodoStorePath), true);
@@ -916,7 +969,7 @@ process.stdout.write(JSON.stringify({ ok: true, data: { messages } }));
     const isolatedEvents = new EventEmitter();
     const configPath = join(tempDir, "injected-store-config.json");
     const injectedTodoStorePath = join(tempDir, "nested", "isolated-todos.json");
-    const defaultTodoStorePath = join(process.cwd(), "data", "session-todos.json");
+    const defaultTodoStorePath = join(process.cwd(), "data", "todos.json");
     const isolatedServer = new DashboardServer({
       config: { ...config, dashboard: { ...config.dashboard, port: nextPort++ } },
       botEvents: isolatedEvents,
@@ -927,18 +980,17 @@ process.stdout.write(JSON.stringify({ ok: true, data: { messages } }));
 
     isolatedEvents.emit("session:created", {
       sessionId: "session-injected-store",
-      title: "Ops Room-other-2026-06-11",
-      chatName: "Ops Room",
-      intent: "other",
+      title: "Robot Test-other-2026-06-11-3495402b",
+      chatName: "Robot Test",
+      intent: "common_task",
       createdAt: new Date().toISOString(),
     });
 
-    await isolatedServer._createTodoSession("session-injected-store", "Use injected path");
     isolatedServer._todoStore.create({
-      parentSessionId: "session-injected-store",
+      sourceSessionId: "session-injected-store",
+      sourceSessionTitle: "Robot Test-other-2026-06-11-3495402b",
       title: "Use injected path",
       description: "",
-      todoSessionId: "todo-session-constructor",
     });
 
     assert.equal(existsSync(injectedTodoStorePath), true);
