@@ -34,6 +34,7 @@ describe("handleTrigger orchestration", () => {
     const fetchCalls = [];
     const detectIntentCalls = [];
     const sessionOptionsCalls = [];
+    const sessionMetadataCalls = [];
     const promptBuildCalls = [];
 
     const event = {
@@ -63,8 +64,9 @@ describe("handleTrigger orchestration", () => {
     };
 
     const opencode = {
-      findOrCreateSession: async () => {
+      findOrCreateSession: async (_sessionOptions, sessionMetadata) => {
         steps.push("findOrCreateSession");
+        sessionMetadataCalls.push(sessionMetadata);
         return { sessionId: "session-1", sessionState: "existing" };
       },
       sendMessage: async (_sessionId, prompt) => {
@@ -133,6 +135,7 @@ describe("handleTrigger orchestration", () => {
     assert.deepEqual(fetchCalls, [{
       chatId: "oc_chat1",
       threadId: "omt_1",
+      threadLookupMessageId: "om_1",
       beforeTimestamp: "1700000010000",
       triggerMessage: "hi",
     }]);
@@ -149,6 +152,10 @@ describe("handleTrigger orchestration", () => {
       triggerMessageId: "om_1",
       triggerContent: "hi",
       threadId: "omt_1",
+    }]);
+    assert.deepEqual(sessionMetadataCalls, [{
+      chatName: "Ops Room",
+      intent: "other",
     }]);
     assert.deepEqual(promptBuildCalls, [{
       intent: "common_task",
@@ -335,7 +342,8 @@ describe("handleTrigger orchestration", () => {
 
     assert.deepEqual(fetchCalls, [{
       chatId: "oc_chat1",
-      threadId: "om_reply_1",
+      threadId: null,
+      threadLookupMessageId: "om_reply_1",
       beforeTimestamp: "1700000010000",
       triggerMessage: "@Cyber Yixiang Wang 我发了什么数字",
     }]);
@@ -349,11 +357,80 @@ describe("handleTrigger orchestration", () => {
         options: { skipPrefix: true },
       },
       {
-        text: "This message was sent in a thread. I will only use messages from this thread as context.",
+        text: "你发的是 1234。",
+        options: undefined,
+      },
+    ]);
+  });
+
+  it("uses chat context and skips thread-only notices for top-level messages", async () => {
+    const replies = [];
+    const fetchCalls = [];
+
+    const event = {
+      chat_id: "oc_chat1",
+      message_id: "om_top_1",
+      sender_id: "ou_user1",
+      content: "普通消息",
+      create_time: "1700000010000",
+    };
+
+    const queue = {
+      enqueue(_chatId, task) {
+        return task();
+      },
+    };
+
+    const contextFetcher = {
+      fetchContext: async (input) => {
+        fetchCalls.push(input);
+        return {
+          messages: ["[06/09 15:07] user: 普通消息"],
+          scope: "chat",
+          threadId: null,
+          fetchFailed: false,
+        };
+      },
+      getChatName: async () => "Ops Room",
+    };
+
+    const opencode = {
+      findOrCreateSession: async () => ({ sessionId: "session-top", sessionState: "new" }),
+      sendMessage: async () => "ok",
+    };
+
+    const replySender = {
+      sendReply: async (_event, text, options) => {
+        replies.push({ text, options });
+      },
+    };
+
+    await processTrigger({
+      event,
+      config: baseConfig,
+      queue,
+      contextFetcher,
+      opencode,
+      replySender,
+      detectIntentFn: () => "other",
+      buildSessionOptionsFn: () => ({ title: "t", cacheKey: "k", reuse: false }),
+      buildIntentPromptFn: () => "prompt",
+    });
+
+    assert.deepEqual(fetchCalls, [{
+      chatId: "oc_chat1",
+      threadId: null,
+      threadLookupMessageId: "om_top_1",
+      beforeTimestamp: "1700000010000",
+      triggerMessage: "普通消息",
+    }]);
+    assert.deepEqual(replies, [
+      {
+        text: "Processing your request now. If OpenCode requires approval, the final reply may take a bit longer.",
         options: { skipPrefix: true },
       },
       {
-        text: "你发的是 1234。",
+        text: "ok",
         options: undefined,
       },
     ]);
@@ -528,10 +605,6 @@ describe("handleTrigger orchestration", () => {
     assert.deepEqual(replies, [
       {
         text: "Processing your request now. If OpenCode requires approval, the final reply may take a bit longer.",
-        options: { skipPrefix: true },
-      },
-      {
-        text: "This message was sent in a thread. I will only use messages from this thread as context.",
         options: { skipPrefix: true },
       },
       {

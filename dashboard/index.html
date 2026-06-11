@@ -98,6 +98,7 @@ button.secondary{background:var(--bg-elevated);color:var(--text-primary)}
 .theme-option-label{font-size:13px;font-weight:500;color:var(--text-primary)}
 .theme-option-desc{font-size:11px;color:var(--text-secondary);margin-top:2px}
 .server-row-bound{background:var(--accent-bg)}
+.server-row-bot{background:rgba(255,152,0,.08)}
 /* Session detail */
 .session-row{cursor:pointer;transition:background .2s}
 .session-row:hover{background:var(--accent-bg)}
@@ -736,6 +737,11 @@ const i18n={
     bound:"BOUND",
     external:"External",
     managed:"Managed",
+    bot:"Bot",
+    status:"Status",
+    source:"Source",
+    actions:"Actions",
+    restart:"Restart",
     // Dashboard UI labels
     sessions:"Sessions",
     servers:"Servers",
@@ -822,6 +828,11 @@ const i18n={
     bound:"\u5df2\u7ed1\u5b9a",
     external:"\u5916\u90e8",
     managed:"\u6258\u7ba1",
+    bot:"\u673a\u5668\u4eba",
+    status:"\u72b6\u6001",
+    source:"\u6765\u6e90",
+    actions:"\u64cd\u4f5c",
+    restart:"\u91cd\u542f",
     // Dashboard UI labels
     sessions:"\u4f1a\u8bdd",
     servers:"\u670d\u52a1",
@@ -908,6 +919,11 @@ const i18n={
     bound:"TERIKAT",
     external:"Eksternal",
     managed:"Dikelola",
+    bot:"Bot",
+    status:"Status",
+    source:"Sumber",
+    actions:"Aksi",
+    restart:"Restart",
     sessions:"Sesi",
     servers:"Server",
     prompts:"Prompt",
@@ -991,6 +1007,11 @@ const i18n={
     bound:"NATHREN",
     external:"Edhellon",
     managed:"Tirnen",
+    bot:"Bot",
+    status:"T\u00e2l",
+    source:"Pennas",
+    actions:"C\u00e2r",
+    restart:"Ad-ertha",
     sessions:"Nodolel",
     servers:"Haust",
     prompts:"Quettar",
@@ -1162,17 +1183,22 @@ function renderServers(servers){
     el.innerHTML=`<p class="empty">${t("noServers")}</p>`;
     return;
   }
-  let html='<table><thead><tr><th>Port</th><th>PID</th><th>Status</th><th>Source</th><th>Actions</th></tr></thead><tbody>';
+  let html=`<table><thead><tr><th>${t("port")}</th><th>PID</th><th>${t("status")}</th><th>${t("source")}</th><th>${t("actions")}</th></tr></thead><tbody>`;
   for(const s of servers){
+    const isBot=s.kind==="bot";
+    const portLabel=isBot?"-":esc(s.port);
     const boundBadge=s.bound?`<span class="badge badge-safe" style="margin-left:6px">${t("bound")}</span>`:"";
-    const sourceBadge=s.source==="external"
-      ?`<span style="color:var(--text-secondary)">${t("external")}</span>`
-      :`<span style="color:var(--accent)">${t("managed")}</span>`;
-    const rowClass=s.bound?"server-row-bound":"";
-    html+=`<tr class="${rowClass}"><td>${esc(s.port)}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
+    const sourceBadge=isBot
+      ?`<span style="color:var(--warn)">${t("bot")}</span>`
+      :s.source==="external"
+        ?`<span style="color:var(--text-secondary)">${t("external")}</span>`
+        :`<span style="color:var(--accent)">${t("managed")}</span>`;
+    const rowClass=[s.bound?"server-row-bound":"",isBot?"server-row-bot":""].filter(Boolean).join(" ");
+    html+=`<tr class="${rowClass}"><td>${portLabel}${boundBadge}</td><td>${esc(s.pid||"-")}</td><td>${esc(s.status)}</td><td>${sourceBadge}</td>`;
     html+=`<td>`;
     if(s.status==="running"){
-      html+=`<button class="danger" onclick="confirmStopServer('${escJsStr(s.id)}',${s.port},${!!s.bound})">Stop</button>`;
+      html+=`<button class="danger" onclick="confirmStopServer('${escJsStr(s.id)}',${isBot?`'${escJsStr(t("bot"))}'`:s.port},${!!s.bound})">${t("stopBtn")}</button>`;
+      html+=` <button class="secondary" onclick="restartServer('${escJsStr(s.id)}')">${t("restart")}</button>`;
     }
     html+=`</td></tr>`;
   }
@@ -1343,12 +1369,12 @@ async function startServer(){
   }catch(e){alert("Failed: "+e.message)}
 }
 
-function confirmStopServer(id,port,isBound){
+function confirmStopServer(id,portOrLabel,isBound){
   let msg=t("stopConfirmMsg")+"\n\n";
-  if(isBound){
-    msg+=t("stopConfirmBound",{port})+"\n\n";
+  if(isBound&&typeof portOrLabel==="number"){
+    msg+=t("stopConfirmBound",{port:portOrLabel})+"\n\n";
   }
-  msg+=`Port: ${port}`;
+  msg+=typeof portOrLabel==="number"?`Port: ${portOrLabel}`:`Process: ${portOrLabel}`;
   if(confirm(msg)){
     stopServer(id);
   }
@@ -1365,6 +1391,16 @@ async function stopServer(id){
 async function restartServer(id){
   try{
     await api(`/api/servers/${id}/restart`,{method:"POST"});
+    if(String(id).startsWith("bot-")){
+      for(let attempt=0;attempt<10;attempt+=1){
+        await new Promise(resolve=>setTimeout(resolve,500));
+        const servers=await api("/api/servers");
+        renderServers(servers);
+        const botRow=servers.find(s=>String(s.id).startsWith("bot-"));
+        if(botRow&&botRow.id!==id){break;}
+      }
+      return;
+    }
     const servers=await api("/api/servers");
     renderServers(servers);
   }catch(e){alert("Failed: "+e.message)}

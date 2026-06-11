@@ -174,14 +174,14 @@ async function handleTrigger(event) {
       contextFetcher,
       opencode: {
         ...opencode,
-        async findOrCreateSession(sessionOptions) {
+        async findOrCreateSession(sessionOptions, sessionMetadata = {}) {
           const sessionResult = await opencode.findOrCreateSession(sessionOptions);
           log(`  session: "${sessionOptions.title}" (${sessionResult.sessionId}, ${sessionResult.sessionState})`);
           botEvents.emit("session:created", {
             sessionId: sessionResult.sessionId,
             title: sessionOptions.title,
-            chatName: sessionOptions.title.split("-")[0],
-            intent: "other",
+            chatName: sessionMetadata.chatName || null,
+            intent: sessionMetadata.intent || null,
             createdAt: new Date().toISOString(),
           });
           return sessionResult;
@@ -210,7 +210,13 @@ async function handleTrigger(event) {
     });
 
     if (result === null) {
-      log(`  ⚠ queue full for ${chatId}, dropping message ${messageId}`);
+      const triggerKey = messageId || `${chatId}:${event.create_time || event.content || "unknown"}`;
+      const duplicateSuppressed = triggerGuard.inFlight.has(triggerKey) || triggerGuard.completed.has(triggerKey);
+      if (duplicateSuppressed) {
+        log(`  ℹ duplicate trigger ignored for ${chatId} (${messageId})`);
+      } else {
+        log(`  ⚠ queue full for ${chatId}, dropping message ${messageId}`);
+      }
       return;
     }
 
@@ -232,12 +238,21 @@ async function main() {
   try {
     instanceLock = await acquireSingleInstanceLock({
       lockPath: resolve(".oncall-bot.lock"),
+      cwd: process.cwd(),
+      execPath: process.execPath,
+      argv: process.argv.slice(1),
     });
     await preflight();
 
     // Start dashboard
     if (config.dashboard.enabled) {
-      const dashboard = new DashboardServer({ config, botEvents, configPath, opencode });
+      const dashboard = new DashboardServer({
+        config,
+        botEvents,
+        configPath,
+        opencode,
+        botLockPath: instanceLock.lockPath,
+      });
       dashboard.setOpenCodeClient(opencode);
       await dashboard.start();
       log(`\x1b[31m✓ dashboard running at http://localhost:${config.dashboard.port} ← open in browser\x1b[0m`);

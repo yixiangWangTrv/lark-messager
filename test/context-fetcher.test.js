@@ -240,4 +240,51 @@ describe("ContextFetcher", () => {
     assert.ok(calls[1].includes("--thread"));
     assert.ok(calls[1].includes("omt-real-1"));
   });
+
+  it("falls back to chat context when threadLookupMessageId does not resolve to a thread", async () => {
+    const calls = [];
+    const fetcher = new ContextFetcher({
+      context: { message_count: 10, include_sender_name: true },
+      lark: { context_identity: "user" },
+      contextFetcherExec: async (_command, args) => {
+        calls.push(args);
+
+        if (args[1] === "+chat-messages-list") {
+          return {
+            stdout: JSON.stringify({
+              data: {
+                messages: [
+                  {
+                    message_id: "om_top_1",
+                    create_time: "1700000000000",
+                    sender: { name: "Top User" },
+                    msg_type: "text",
+                    body: { content: '{"text":"plain top-level message"}' },
+                  },
+                ],
+              },
+            }),
+          };
+        }
+
+        throw new Error(`unexpected args: ${args.join(" ")}`);
+      },
+    });
+
+    const result = await fetcher.fetchContext({
+      chatId: "oc_chat1",
+      threadId: null,
+      threadLookupMessageId: "om_top_1",
+      beforeTimestamp: "1700000010000",
+      triggerMessage: "plain top-level message",
+    });
+
+    assert.equal(result.scope, "chat");
+    assert.equal(result.threadId, null);
+    assert.equal(result.fetchFailed, false);
+    assert.ok(result.messages.some((m) => m.includes("plain top-level message")));
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0][1], "+chat-messages-list");
+    assert.equal(calls[1][1], "+chat-messages-list");
+  });
 });
