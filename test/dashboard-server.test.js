@@ -11,7 +11,7 @@ describe("DashboardServer", () => {
   const localFilePath = "/tmp/dashboard-server-kb-local-file.txt";
   const config = {
     dashboard: { port: TEST_PORT, enabled: true },
-    opencode: { base_url: "http://localhost:3000" },
+    opencode: { base_url: "http://localhost:3000", project_directory: "/tmp" },
     prompt: {
       summary: { system_prefix: "sum", task_instructions: "sum task", response_format: "Chinese" },
       incident_analysis: { system_prefix: "inc", task_instructions: "inc task", response_format: "English" },
@@ -76,6 +76,11 @@ describe("DashboardServer", () => {
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(data.status, "running");
+  });
+
+  it("dashboard server listens on localhost only", () => {
+    const address = server._httpServer.address();
+    assert.equal(address.address, "127.0.0.1");
   });
 
   it("GET /api/prompts returns prompt config", async () => {
@@ -226,6 +231,31 @@ describe("DashboardServer", () => {
     assert.equal(res.status, 404);
     const data = await res.json();
     assert.equal(data.error, "knowledge base item not found");
+  });
+
+  it("POST /api/knowledge-base/items returns 500 when config persistence fails", async () => {
+    const originalSaveConfig = server._saveConfig;
+    server._saveConfig = () => {
+      throw new Error("disk full");
+    };
+
+    try {
+      const res = await fetch(`${baseUrl}/api/knowledge-base/items`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: "Should Fail",
+          source_type: "free_text",
+          content: { text: "cannot persist" },
+        }),
+      });
+
+      assert.equal(res.status, 500);
+      const data = await res.json();
+      assert.equal(data.error, "disk full");
+    } finally {
+      server._saveConfig = originalSaveConfig;
+    }
   });
 
   it("GET /api/sessions returns empty array initially", async () => {
