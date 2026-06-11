@@ -176,6 +176,92 @@ describe("intent routing", () => {
     assert.doesNotMatch(prompt, /Use Datadog to investigate incidents\./);
   });
 
+  it("injects knowledge base context before chat context", () => {
+    const prompt = buildIntentPrompt({
+      intent: "other",
+      promptConfig,
+      event: {
+        content: "answer with the docs",
+        sender_id: "ou_user3",
+        chat_id: "oc_chat2",
+        message_id: "om_3",
+      },
+      contextResult: {
+        messages: ["[06/09 15:08] user: what does the runbook say?"],
+        scope: "chat",
+        threadId: null,
+        fetchFailed: false,
+      },
+      knowledgeBase: {
+        enabled: true,
+        items: [
+          {
+            id: "kb_1",
+            enabled: true,
+            name: "Runbook",
+            description: "Primary incident steps",
+            source_type: "free_text",
+            source: {},
+            content: {
+              mode: "inline_text",
+              text: "Step 1: page the owner.",
+            },
+          },
+        ],
+      },
+      sessionState: "new",
+    });
+
+    const metadataIndex = prompt.indexOf("Trigger metadata:");
+    const knowledgeBaseIndex = prompt.indexOf("Knowledge base context:");
+    const contextIndex = prompt.indexOf("Context:\n[06/09 15:08] user: what does the runbook say?");
+
+    assert.notEqual(metadataIndex, -1);
+    assert.notEqual(knowledgeBaseIndex, -1);
+    assert.notEqual(contextIndex, -1);
+    assert.ok(metadataIndex < knowledgeBaseIndex);
+    assert.ok(knowledgeBaseIndex < contextIndex);
+  });
+
+  it("injects nothing when knowledge base is disabled", () => {
+    const prompt = buildIntentPrompt({
+      intent: "other",
+      promptConfig,
+      event: {
+        content: "answer directly",
+        sender_id: "ou_user4",
+        chat_id: "oc_chat2",
+        message_id: "om_4",
+      },
+      contextResult: {
+        messages: ["[06/09 15:09] user: please help"],
+        scope: "chat",
+        threadId: null,
+        fetchFailed: false,
+      },
+      knowledgeBase: {
+        enabled: false,
+        items: [
+          {
+            id: "kb_2",
+            enabled: true,
+            name: "Disabled runbook",
+            source_type: "free_text",
+            source: {},
+            content: {
+              mode: "inline_text",
+              text: "This should not appear.",
+            },
+          },
+        ],
+      },
+      sessionState: "new",
+    });
+
+    assert.doesNotMatch(prompt, /Knowledge base context:/);
+    assert.doesNotMatch(prompt, /This should not appear\./);
+  });
+
   it("builds incident session options that reuse by chat and day", () => {
     const options = buildSessionOptions({
       intent: "incident_analysis",
