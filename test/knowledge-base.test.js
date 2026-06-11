@@ -74,10 +74,15 @@ describe("knowledge-base helper", () => {
       });
 
       writeFileSync(file, "version two");
-      const refreshed = refreshKnowledgeBaseItem(item);
+      const staleItem = {
+        ...item,
+        updated_at: "2000-01-01T00:00:00.000Z",
+      };
+      const refreshed = refreshKnowledgeBaseItem(staleItem);
 
       assert.match(refreshed.content.text, /version two/);
-      assert.notEqual(refreshed.updated_at, item.updated_at);
+      assert.notEqual(refreshed.updated_at, staleItem.updated_at);
+      assert.ok(Date.parse(refreshed.updated_at) > Date.parse(staleItem.updated_at));
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
