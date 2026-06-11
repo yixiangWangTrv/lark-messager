@@ -24,4 +24,34 @@ describe("config dashboard defaults", () => {
     assert.equal(cfg.dashboard.enabled, false);
     unlinkSync(path);
   });
+
+  it("applies knowledge_base defaults when field is missing", () => {
+    const path = "/tmp/test-dashboard-cfg3.json";
+    writeFileSync(path, JSON.stringify({
+      opencode: { base_url: "http://localhost:3000" },
+    }));
+    const cfg = loadConfig(path);
+    assert.equal(cfg.knowledge_base.enabled, true);
+    assert.deepEqual(cfg.knowledge_base.items, []);
+    unlinkSync(path);
+  });
+
+  it("respects custom knowledge_base config", () => {
+    const path = "/tmp/test-dashboard-cfg4.json";
+    writeFileSync(path, JSON.stringify({
+      opencode: { base_url: "http://localhost:3000" },
+      knowledge_base: {
+        enabled: false,
+        items: [
+          { title: "Runbook", url: "https://example.com/runbook" },
+        ],
+      },
+    }));
+    const cfg = loadConfig(path);
+    assert.equal(cfg.knowledge_base.enabled, false);
+    assert.deepEqual(cfg.knowledge_base.items, [
+      { title: "Runbook", url: "https://example.com/runbook" },
+    ]);
+    unlinkSync(path);
+  });
 });
