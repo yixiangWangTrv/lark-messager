@@ -338,6 +338,18 @@ describe("DashboardServer", () => {
     assert.ok(html.includes("Settings"));
   });
 
+  it("GET / includes trigger mode permission hint labels and containers", async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.equal(res.status, 200);
+
+    const html = await res.text();
+    assert.match(html, /requiredPermissions:"Required"/);
+    assert.match(html, /optionalPermissions:"Optional"/);
+    assert.match(html, /id="mentionBotPermissions"/);
+    assert.match(html, /id="mentionOwnerPermissions"/);
+    assert.match(html, /id="allMessagesPermissions"/);
+  });
+
   it("GET / orders Knowledge Base tab between Sessions and Distill and escapes source input values for attributes", async () => {
     const res = await fetch(`${baseUrl}/`);
     const html = await res.text();
