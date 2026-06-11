@@ -65,6 +65,7 @@ The English section should contain:
 - `Configuration`
 - `Dashboard`
 - `Testing`
+- `Contributing`
 - `Project Structure`
 
 Content guidance:
@@ -76,6 +77,7 @@ Content guidance:
 - `Configuration` references `oncall-bot.config.json` and describes the most important top-level blocks
 - `Dashboard` explains the local dashboard and what it can control
 - `Testing` documents `npm test`
+- `Contributing` documents the expected git workflow: start from `master`, create a feature branch from it, make changes, push the branch, and open a PR back to `master`
 - `Project Structure` highlights the main entrypoints and directories
 
 ## Chinese Section
@@ -90,11 +92,15 @@ Terminology should stay consistent with the codebase where useful, for example:
 - `knowledge base`
 - `trigger modes`
 
+The Chinese section should also include the same `Contributing` guidance and make the branching rule explicit: contributors should sync `master`, branch from `master`, then create a PR back into `master`.
+
 ## Bahasa Indonesia Section
 
 The Bahasa Indonesia section should also mirror the English structure and keep a practical documentation tone.
 
 The translation should stay concise and operational, optimized for setup and contribution rather than marketing copy.
+
+The Bahasa Indonesia section should include the same contribution workflow and state clearly that contributors create a new branch from `master` before opening a PR to `master`.
 
 ## Star History Image
 
