@@ -49,6 +49,37 @@ describe("knowledge-base helper", () => {
     assert.equal(item.content.text, "check service logs first");
   });
 
+  it("does not persist arbitrary caller fields", () => {
+    const item = createKnowledgeBaseItem({
+      name: "Runbook",
+      source_type: "free_text",
+      content: { text: "check service logs first", extra: "drop me" },
+      body: "request-only body",
+      text: "request-only text",
+      request_id: "req-123",
+      source: { url: "https://example.com/ignored", extra: "drop me" },
+    });
+
+    assert.deepEqual(item, {
+      id: item.id,
+      enabled: true,
+      updated_at: item.updated_at,
+      name: "Runbook",
+      description: undefined,
+      source_type: "free_text",
+      source: {
+        path: undefined,
+        url: "https://example.com/ignored",
+        project_name: undefined,
+      },
+      content: {
+        mode: "inline_text",
+        text: "check service logs first",
+      },
+      source_summary: undefined,
+    });
+  });
+
   it("preserves original free_text formatting after validating trimmed content", () => {
     const text = "\n  step one\nstep two\n";
     const item = createKnowledgeBaseItem({
@@ -186,7 +217,7 @@ describe("knowledge-base helper", () => {
           source_type: "free_text",
           content: { text: "   " },
         }),
-      /body text is required for free_text/,
+      /content.text is required for free_text/,
     );
   });
 
