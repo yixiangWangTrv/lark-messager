@@ -2,7 +2,7 @@
 
 Lark on-call bot powered by OpenCode, with local dashboard controls, configurable prompt routing, knowledge base support, and style distillation tools.
 
-If this project helps you, please give it a GitHub star.
+If this project helps you, please give it a GitHub star🥺. 
 
 **Languages:** [English](#english) | [中文](#中文) | [Bahasa Indonesia](#bahasa-indonesia)
 
