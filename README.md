@@ -2,6 +2,8 @@
 
 Lark on-call bot powered by OpenCode, with local dashboard controls, configurable prompt routing, knowledge base support, and style distillation tools.
 
+If this project helps you, please give it a GitHub star.
+
 **Languages:** [English](#english) | [中文](#中文) | [Bahasa Indonesia](#bahasa-indonesia)
 
 ## English
@@ -45,6 +47,26 @@ Review and update the config file:
 
 ```sh
 cp oncall-bot.config.json oncall-bot.config.local.json
+```
+
+Before starting the bot, update these fields in your copied config file:
+
+- `lark.trigger.bot_name`: set this to your bot's current display name in Lark. The `mention_bot` trigger mode matches `@<bot_name>` from message text, so leaving the sample name in place will prevent triggers from firing for your bot.
+- `opencode.project_directory`: set this to the absolute path of your local project directory. The bot uses this path when it auto-starts `opencode serve`.
+
+Example:
+
+```json
+{
+  "lark": {
+    "trigger": {
+      "bot_name": "Another Yixiang Wang"
+    }
+  },
+  "opencode": {
+    "project_directory": "/absolute/path/to/oncall-bot"
+  }
+}
 ```
 
 Start the bot:
@@ -140,6 +162,8 @@ This project is licensed under the MIT License. See `LICENSE` for the full text.
 
 ## 中文
 
+如果这个项目对你有帮助，欢迎给仓库点个 Star。
+
 ### 概述
 
 `oncall-bot` 是一个基于 Node.js 的 Lark 值班机器人。它会监听 Lark 消息事件，抓取相关上下文，按意图路由请求，把任务发送给 OpenCode，再把结果回发到聊天中。项目同时提供一个本地 dashboard 用于运行时控制和配置编辑。
@@ -179,6 +203,26 @@ npm install
 
 ```sh
 cp oncall-bot.config.json oncall-bot.config.local.json
+```
+
+在启动机器人之前，请先修改复制出来的配置文件中的这两个字段：
+
+- `lark.trigger.bot_name`：改成你当前机器人在 Lark 里的显示名称。`mention_bot` 触发模式会按消息里的 `@<bot_name>` 文本匹配，如果保留示例名称，别人 `@` 你的机器人时不会触发。
+- `opencode.project_directory`：改成你本地项目目录的绝对路径。机器人在自动拉起 `opencode serve` 时会使用这个路径。
+
+示例：
+
+```json
+{
+  "lark": {
+    "trigger": {
+      "bot_name": "Another Yixiang Wang"
+    }
+  },
+  "opencode": {
+    "project_directory": "/absolute/path/to/oncall-bot"
+  }
+}
 ```
 
 启动机器人：
@@ -274,6 +318,8 @@ git checkout -b feat/my-change
 
 ## Bahasa Indonesia
 
+Kalau project ini membantu, mohon bantu beri GitHub star.
+
 ### Ringkasan
 
 `oncall-bot` adalah bot on-call berbasis Node.js untuk Lark. Bot ini mendengarkan event pesan Lark, mengambil konteks percakapan yang relevan, merutekan permintaan berdasarkan intent, mengirim tugas ke OpenCode, lalu mengirim hasilnya kembali ke chat. Proyek ini juga menyediakan dashboard lokal untuk kontrol runtime dan pengeditan konfigurasi.
@@ -313,6 +359,26 @@ Tinjau dan ubah file konfigurasi:
 
 ```sh
 cp oncall-bot.config.json oncall-bot.config.local.json
+```
+
+Sebelum menjalankan bot, ubah dua field ini di file konfigurasi salinan Anda:
+
+- `lark.trigger.bot_name`: isi dengan nama tampilan bot Anda saat ini di Lark. Mode trigger `mention_bot` mencocokkan teks `@<bot_name>` dari pesan, jadi jika nama contoh dibiarkan, mention ke bot Anda tidak akan memicu bot.
+- `opencode.project_directory`: isi dengan path absolut ke direktori project lokal Anda. Bot memakai path ini saat auto-start `opencode serve`.
+
+Contoh:
+
+```json
+{
+  "lark": {
+    "trigger": {
+      "bot_name": "Another Yixiang Wang"
+    }
+  },
+  "opencode": {
+    "project_directory": "/absolute/path/to/oncall-bot"
+  }
+}
 ```
 
 Jalankan bot:
