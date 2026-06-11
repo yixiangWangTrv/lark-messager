@@ -263,4 +263,25 @@ describe("DashboardServer", () => {
     assert.ok(html.includes("Prompts"));
     assert.ok(html.includes("Settings"));
   });
+
+  it("GET / orders Knowledge Base tab between Sessions and Distill and escapes source input values for attributes", async () => {
+    const res = await fetch(`${baseUrl}/`);
+    const html = await res.text();
+
+    const sessionsIndex = html.indexOf('data-tab="sessions"');
+    const knowledgeBaseIndex = html.indexOf('data-tab="knowledge-base"');
+    const distillIndex = html.indexOf('data-tab="distill"');
+
+    assert.notEqual(sessionsIndex, -1);
+    assert.notEqual(knowledgeBaseIndex, -1);
+    assert.notEqual(distillIndex, -1);
+    assert.ok(sessionsIndex < knowledgeBaseIndex);
+    assert.ok(knowledgeBaseIndex < distillIndex);
+
+    assert.ok(html.includes("function escAttr(s)"));
+    assert.ok(html.includes('value="${escAttr(values.path)}"'));
+    assert.ok(html.includes('value="${escAttr(values.project_name)}"'));
+    assert.ok(html.includes('value="${escAttr(values.url)}"'));
+    assert.ok(!html.includes('value="${esc(values.path)}"'));
+  });
 });
