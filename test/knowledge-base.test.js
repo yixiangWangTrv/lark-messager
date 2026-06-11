@@ -17,14 +17,16 @@ describe("knowledge-base helper", () => {
 
     try {
       const item = createKnowledgeBaseItem({
-        name: "Notes",
-        description: "local file",
+        name: "  Notes  ",
+        description: "  local file  ",
         source_type: "local_file",
-        source: { path: file },
+        source: { path: `  ${file}  ` },
       });
 
       assert.equal(item.name, "Notes");
+      assert.equal(item.description, "local file");
       assert.equal(item.source_type, "local_file");
+      assert.equal(item.source.path, file);
       assert.equal(item.content.mode, "inline_text");
       assert.match(item.content.text, /hello knowledge base/);
       assert.equal(item.enabled, true);
@@ -52,7 +54,7 @@ describe("knowledge-base helper", () => {
       name: "Repo",
       description: "core repo",
       source_type: "github_url",
-      source: { url: "https://github.com/acme/api" },
+      source: { url: "  https://github.com/acme/api  " },
     });
 
     assert.equal(item.content.mode, "reference_only");
@@ -65,7 +67,7 @@ describe("knowledge-base helper", () => {
       name: "Project",
       description: "linked project",
       source_type: "project_name",
-      source: { project_name: "acme-api" },
+      source: { project_name: "  acme-api  " },
     });
 
     assert.equal(item.content.mode, "reference_only");
@@ -78,12 +80,102 @@ describe("knowledge-base helper", () => {
       name: "Design Doc",
       description: "external doc",
       source_type: "lark_doc",
-      source: { url: "https://example.com/doc/123" },
+      source: { url: "  https://example.com/doc/123  " },
     });
 
     assert.equal(item.content.mode, "reference_only");
     assert.equal(item.content.text, "");
     assert.equal(item.source.url, "https://example.com/doc/123");
+  });
+
+  it("rejects unsupported source_type", () => {
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          name: "Invalid",
+          source_type: "unknown_type",
+        }),
+      /Unsupported knowledge base source_type: unknown_type/,
+    );
+  });
+
+  it("rejects missing or blank name", () => {
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          source_type: "free_text",
+          content: { text: "some text" },
+        }),
+      /name is required/,
+    );
+
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          name: "   ",
+          source_type: "free_text",
+          content: { text: "some text" },
+        }),
+      /name is required/,
+    );
+  });
+
+  it("rejects missing source.path for local_file", () => {
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          name: "Notes",
+          source_type: "local_file",
+          source: { path: "   " },
+        }),
+      /source.path is required for local_file/,
+    );
+  });
+
+  it("rejects missing source.url for github_url and lark_doc", () => {
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          name: "Repo",
+          source_type: "github_url",
+          source: { url: "   " },
+        }),
+      /source.url is required for github_url/,
+    );
+
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          name: "Doc",
+          source_type: "lark_doc",
+          source: { url: "   " },
+        }),
+      /source.url is required for lark_doc/,
+    );
+  });
+
+  it("rejects missing source.project_name", () => {
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          name: "Project",
+          source_type: "project_name",
+          source: { project_name: "   " },
+        }),
+      /source.project_name is required for project_name/,
+    );
+  });
+
+  it("rejects empty free_text content", () => {
+    assert.throws(
+      () =>
+        createKnowledgeBaseItem({
+          name: "Runbook",
+          source_type: "free_text",
+          content: { text: "   " },
+        }),
+      /body text is required for free_text/,
+    );
   });
 
   it("refreshes local_file item from disk", () => {
