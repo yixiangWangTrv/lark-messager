@@ -6,7 +6,7 @@
     "watch_chat_ids": [],
     "trigger": {
       "bot_id": "ou_05f296a4c41f1e085b4468e162628690",
-      "bot_name": "Cyber Yixiang Wang",
+      "bot_name": "Another Yixiang Wang",
       "user_ids": [
         "ou_0e518ca3c7ded8734c6841a36232f211"
       ],
@@ -19,7 +19,7 @@
     },
     "trigger_modes": {
       "mention_bot": true,
-      "mention_owner": true,
+      "mention_owner": false,
       "all_messages": false
     }
   },
@@ -29,7 +29,7 @@
   },
   "opencode": {
     "username": "opencode",
-    "password": "",
+    "password": "72T7_MQ20ZVWrqG636yYDc1KFvvve1Dv2CjlOua4Nts",
     "analysis_timeout_ms": 600000,
     "submit_timeout_ms": 30000,
     "poll_interval_ms": 3000,
@@ -65,10 +65,6 @@
     "enabled": true,
     "items": []
   },
-  "knowledge_base": {
-    "enabled": true,
-    "items": []
-  },
   "prompt": {
     "summary": {
       "system_prefix": "You summarize conversation context from this Lark chat.",
@@ -85,9 +81,14 @@
       "task_instructions": "Review the PR request from the provided context. Focus on code-review findings, risks, missing checks, and next actions. Do not use Datadog unless the user explicitly asks about runtime or production impact.",
       "response_format": "Respond in English."
     },
+    "common_task": {
+      "system_prefix": "You answer the user's chat request using the provided chat context.",
+      "task_instructions": "Use the trigger message as the primary task instruction. You have access to ALL opencode skills and tools — including Datadog (logs, traces, metrics, monitors, dashboards), Lark/Feishu integrations, code search, web fetch, and any other available capabilities. Use whatever tools and skills are appropriate to fulfill the user's request. Review the provided context messages, filter for the parts relevant to the trigger, and use them as supporting evidence when they are related. Answer directly, and take action when the request requires action.",
+      "response_format": "Respond in English."
+    },
     "other": {
       "system_prefix": "You answer the user's chat request using the provided chat context.",
-      "task_instructions": "Answer the request directly from the chat context. Do not use Datadog unless the user explicitly asks for system investigation.",
+      "task_instructions": "Use the trigger message as the primary task instruction. You have access to ALL opencode skills and tools — including Datadog (logs, traces, metrics, monitors, dashboards), Lark/Feishu integrations, code search, web fetch, and any other available capabilities. Use whatever tools and skills are appropriate to fulfill the user's request. Review the provided context messages, filter for the parts relevant to the trigger, and use them as supporting evidence when they are related. Answer directly, and take action when the request requires action.",
       "response_format": "Respond in English."
     }
   },
@@ -97,7 +98,39 @@
       "summary": false,
       "incident_analysis": false,
       "pr_review": false,
+      "common_task": false,
       "other": false
+    }
+  },
+  "intent_routing": {
+    "summary": {
+      "keywords": [
+        "summary",
+        "summarize",
+        "summarise",
+        "总结",
+        "总结上面",
+        "总结上面的对话"
+      ]
+    },
+    "incident_analysis": {
+      "keywords": [
+        "incident",
+        "error",
+        "failure",
+        "failing",
+        "broken",
+        "debug",
+        "investigate",
+        "排查",
+        "报错",
+        "故障",
+        "异常"
+      ]
+    },
+    "pr_review": {
+      "keywords": [],
+      "use_github_pr_url": true
     }
   }
 }
