@@ -142,10 +142,12 @@ describe("handleTrigger orchestration", () => {
       today: fixedToday,
       triggerMessageId: "om_1",
       triggerContent: "hi",
+      threadId: "omt_1",
     }]);
     assert.deepEqual(promptBuildCalls, [{
       intent: "other",
       promptConfig: baseConfig.prompt,
+      knowledgeBase: undefined,
       event,
       contextResult: {
         messages: ["[06/09 15:07] user: hi there"],
@@ -154,6 +156,7 @@ describe("handleTrigger orchestration", () => {
         fetchFailed: false,
       },
       sessionState: "existing",
+      puaConfig: undefined,
     }]);
     assert.deepEqual(sentPrompts, ["prompt for existing session"]);
     assert.deepEqual(replies, [
@@ -341,6 +344,73 @@ describe("handleTrigger orchestration", () => {
         options: undefined,
       },
     ]);
+  });
+
+  it("passes knowledge base config to buildIntentPrompt", async () => {
+    const knowledgeBase = {
+      enabled: true,
+      max_results: 3,
+      items: [
+        { title: "Runbook", content: "Check alerts first." },
+      ],
+    };
+    const config = {
+      ...baseConfig,
+      knowledge_base: knowledgeBase,
+    };
+    const promptBuildCalls = [];
+
+    const event = {
+      chat_id: "oc_chat1",
+      message_id: "om_kb_1",
+      sender_id: "ou_user1",
+      content: "help",
+      create_time: "1700000010000",
+    };
+
+    const queue = {
+      enqueue(_chatId, task) {
+        return task();
+      },
+    };
+
+    const contextFetcher = {
+      fetchContext: async () => ({
+        messages: ["[06/09 15:07] user: help"],
+        scope: "chat",
+        threadId: null,
+        fetchFailed: false,
+      }),
+      getChatName: async () => "Ops Room",
+    };
+
+    const opencode = {
+      findOrCreateSession: async () => ({ sessionId: "session-kb", sessionState: "new" }),
+      sendMessage: async () => "ok",
+    };
+
+    const replySender = {
+      sendReply: async () => {},
+    };
+
+    await processTrigger({
+      event,
+      config,
+      queue,
+      contextFetcher,
+      opencode,
+      replySender,
+      detectIntentFn: () => "other",
+      buildSessionOptionsFn: () => ({ title: "t", cacheKey: "k", reuse: false }),
+      buildIntentPromptFn: (options) => {
+        promptBuildCalls.push(options);
+        return "prompt";
+      },
+    });
+
+    assert.equal(promptBuildCalls.length, 1);
+    assert.equal(promptBuildCalls[0].knowledgeBase, knowledgeBase);
+    assert.deepEqual(promptBuildCalls[0].knowledgeBase, config.knowledge_base);
   });
 
   it("ignores a duplicate trigger for the same message_id while the first one is still in flight", async () => {
