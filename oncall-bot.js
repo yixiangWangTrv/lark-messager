@@ -16,6 +16,7 @@ import { processTrigger } from "./lib/trigger-orchestration.js";
 import { DashboardServer } from "./lib/dashboard-server.js";
 import { botEvents } from "./lib/bot-events.js";
 import { detectOpencodeServeProcesses, prioritizeOpencodeServeProcesses } from "./lib/opencode-serve-discovery.js";
+import { createLogger } from "./lib/logger.js";
 
 // Parse args
 const configPath = process.argv.includes("--config")
@@ -24,7 +25,7 @@ const configPath = process.argv.includes("--config")
 
 // Load config
 const config = loadConfig(configPath);
-const log = (msg) => process.stderr.write(`[${new Date().toLocaleTimeString("zh-CN", { hour12: false })}] ${msg}\n`);
+const log = createLogger();
 
 // Initialize components
 const filter = new MessageFilter(config);
