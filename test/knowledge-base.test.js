@@ -49,6 +49,18 @@ describe("knowledge-base helper", () => {
     assert.equal(item.content.text, "check service logs first");
   });
 
+  it("preserves original free_text formatting after validating trimmed content", () => {
+    const text = "\n  step one\nstep two\n";
+    const item = createKnowledgeBaseItem({
+      name: "Runbook",
+      source_type: "free_text",
+      content: { text },
+    });
+
+    assert.equal(item.content.mode, "inline_text");
+    assert.equal(item.content.text, text);
+  });
+
   it("creates a github_url item as reference_only", () => {
     const item = createKnowledgeBaseItem({
       name: "Repo",
@@ -273,7 +285,6 @@ describe("knowledge-base helper", () => {
         "[1] Enabled Item",
         "description: desc",
         "source_type: free_text",
-        "source_summary: inline note",
         "content:",
         "abc",
         "",
@@ -284,6 +295,60 @@ describe("knowledge-base helper", () => {
       ].join("\n"),
     );
     assert.doesNotMatch(section, /Disabled Item/);
+  });
+
+  it("derives source_summary from normalized source when creating items", () => {
+    const dir = mkdtempSync(join(tmpdir(), "kb-summary-"));
+    const file = join(dir, "notes.txt");
+    writeFileSync(file, "hello knowledge base");
+
+    try {
+      const localFileItem = createKnowledgeBaseItem({
+        name: "Notes",
+        source_type: "local_file",
+        source_summary: "stale summary",
+        source: { path: `  ${file}  ` },
+      });
+
+      const projectItem = createKnowledgeBaseItem({
+        name: "Project",
+        source_type: "project_name",
+        source_summary: "stale summary",
+        source: { project_name: "  acme-api  " },
+      });
+
+      const repoItem = createKnowledgeBaseItem({
+        name: "Repo",
+        source_type: "github_url",
+        source_summary: "stale summary",
+        source: { url: "  https://github.com/acme/api  " },
+      });
+
+      const docItem = createKnowledgeBaseItem({
+        name: "Doc",
+        source_type: "lark_doc",
+        source_summary: "stale summary",
+        source: { url: "  https://example.com/doc/123  " },
+      });
+
+      assert.equal(localFileItem.source_summary, file);
+      assert.equal(projectItem.source_summary, "acme-api");
+      assert.equal(repoItem.source_summary, "https://github.com/acme/api");
+      assert.equal(docItem.source_summary, "https://example.com/doc/123");
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not persist caller-provided source_summary for free_text items", () => {
+    const item = createKnowledgeBaseItem({
+      name: "Runbook",
+      source_type: "free_text",
+      source_summary: "stale summary",
+      content: { text: "keep formatting" },
+    });
+
+    assert.equal(item.source_summary, undefined);
   });
 
   it("returns empty string when global knowledge base is disabled", () => {
@@ -330,6 +395,35 @@ describe("knowledge-base helper", () => {
     });
 
     assert.equal(section, ["Knowledge base context:", "", "[1] Runbook", "source_type: free_text", "content:", "line one", "line two"].join("\n"));
+  });
+
+  it("derives source_summary in prompt output when missing from item", () => {
+    const section = buildKnowledgeBasePromptSection({
+      enabled: true,
+      items: [
+        {
+          id: "1",
+          name: "Repo",
+          enabled: true,
+          source_type: "github_url",
+          source: { url: "  https://github.com/acme/api  " },
+          content: { mode: "reference_only", text: "" },
+          updated_at: "2026-06-11T00:00:00.000Z",
+        },
+        {
+          id: "2",
+          name: "Project",
+          enabled: true,
+          source_type: "project_name",
+          source: { project_name: "  acme-api  " },
+          content: { mode: "reference_only", text: "" },
+          updated_at: "2026-06-11T00:00:00.000Z",
+        },
+      ],
+    });
+
+    assert.match(section, /source_summary: https:\/\/github\.com\/acme\/api/);
+    assert.match(section, /source_summary: acme-api/);
   });
 
   it("returns empty string when global knowledge base is enabled with no enabled items", () => {
