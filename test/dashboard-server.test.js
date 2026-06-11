@@ -572,7 +572,8 @@ process.stdout.write(JSON.stringify({ ok: true, data: { messages } }));
     const data = await res.json();
     assert.ok(Array.isArray(data));
     for (const s of data) {
-      assert.ok(typeof s.port === "number");
+      // bot rows have port: null; opencode rows have a numeric port
+      assert.ok(s.port === null || typeof s.port === "number");
       assert.ok(typeof s.status === "string");
     }
   });

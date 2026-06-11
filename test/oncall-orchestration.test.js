@@ -155,7 +155,7 @@ describe("handleTrigger orchestration", () => {
     }]);
     assert.deepEqual(sessionMetadataCalls, [{
       chatName: "Ops Room",
-      intent: "other",
+      intent: "common_task",
     }]);
     assert.deepEqual(promptBuildCalls, [{
       intent: "common_task",
