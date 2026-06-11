@@ -66,6 +66,8 @@ The English section should contain:
 - `Dashboard`
 - `Testing`
 - `Contributing`
+- `License`
+- `Contact`
 - `Project Structure`
 
 Content guidance:
@@ -78,7 +80,15 @@ Content guidance:
 - `Dashboard` explains the local dashboard and what it can control
 - `Testing` documents `npm test`
 - `Contributing` documents the expected git workflow: start from `master`, create a feature branch from it, make changes, push the branch, and open a PR back to `master`
+- `License` states that the project is released under the MIT License
+- `Contact` lists the maintainer contact details provided by the user
 - `Project Structure` highlights the main entrypoints and directories
+
+The contact block should include:
+
+- `yixiang.wang@traveloka.com`
+- `943161618@qq.com`
+- `+86 18856978931`
 
 ## Chinese Section
 
@@ -94,6 +104,8 @@ Terminology should stay consistent with the codebase where useful, for example:
 
 The Chinese section should also include the same `Contributing` guidance and make the branching rule explicit: contributors should sync `master`, branch from `master`, then create a PR back into `master`.
 
+The Chinese section should also include matching `License` and `Contact` sections with the same MIT and contact details.
+
 ## Bahasa Indonesia Section
 
 The Bahasa Indonesia section should also mirror the English structure and keep a practical documentation tone.
@@ -101,6 +113,8 @@ The Bahasa Indonesia section should also mirror the English structure and keep a
 The translation should stay concise and operational, optimized for setup and contribution rather than marketing copy.
 
 The Bahasa Indonesia section should include the same contribution workflow and state clearly that contributors create a new branch from `master` before opening a PR to `master`.
+
+The Bahasa Indonesia section should also include matching `License` and `Contact` sections with the same MIT and contact details.
 
 ## Star History Image
 
@@ -119,6 +133,7 @@ This keeps the README complete even when the chat attachment itself is not expos
 ## Files Expected To Change
 
 - `README.md`
+- `LICENSE`
 - optionally an image asset path if the provided image is added to the repository as a local file
 
 ## Verification
@@ -129,6 +144,8 @@ Verification should cover:
 - commands match the current `package.json`
 - configuration examples match the current config file shape
 - the documented features exist in the current codebase
+- the README includes MIT license wording and the provided contact details
+- a root `LICENSE` file exists with MIT text
 - the final star-history section renders an image
 
 ## Commit Strategy
