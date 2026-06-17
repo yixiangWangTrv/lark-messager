@@ -510,6 +510,18 @@ button:disabled{opacity:.6;cursor:not-allowed}
         </label>
       </div>
 
+      <div class="toggle-card" id="cardAllowPrivate" onclick="toggleMode('modeAllowPrivate')">
+        <div class="toggle-icon">&#x1F4AC;</div>
+        <div class="toggle-info">
+          <div class="toggle-title">Private Chat</div>
+          <div class="toggle-desc">Bot responds to direct (1:1) messages sent to it, in addition to group chats.</div>
+        </div>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="modeAllowPrivate" onchange="onToggleChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       <div style="margin-top:16px;display:flex;align-items:center;gap:12px">
         <button onclick="saveTriggerModes()">Save Trigger Modes</button>
         <span class="note" id="triggerSaveStatus"></span>
@@ -760,6 +772,8 @@ const i18n={
     mentionOwnerDesc:"Bot responds when someone @mentions you (the owner) in a group where the bot is present.",
     allMsgTitle:"All Messages",
     allMsgDesc:"Bot responds to every message in group chats. High volume — use carefully.",
+    privateChatTitle:"Private Chat",
+    privateChatDesc:"Bot responds to direct (1:1) messages sent to it, in addition to group chats.",
     recommended:"Recommended",
     caution:"Caution",
     saveTriggerModes:"Save Trigger Modes",
@@ -852,6 +866,8 @@ const i18n={
     mentionOwnerDesc:"\u6709\u4eba\u5728\u673a\u5668\u4eba\u6240\u5728\u7fa4\u91cc @\u4f60 \u65f6\u89e6\u53d1\u3002",
     allMsgTitle:"\u6240\u6709\u6d88\u606f",
     allMsgDesc:"\u7fa4\u91cc\u6240\u6709\u6d88\u606f\u90fd\u89e6\u53d1\uff0c\u8c28\u614e\u4f7f\u7528\u3002",
+    privateChatTitle:"\u79c1\u804a",
+    privateChatDesc:"\u5141\u8bb8\u7528\u6237\u76f4\u63a5\u7ed9\u673a\u5668\u4eba\u53d1\u79c1\u4fe1\uff081:1\uff09\u89e6\u53d1\uff0c\u4e0d\u9650\u4e8e\u7fa4\u804a\u3002",
     recommended:"\u63a8\u8350",
     caution:"\u8c28\u614e",
     saveTriggerModes:"\u4fdd\u5b58\u89e6\u53d1\u6a21\u5f0f",
@@ -943,6 +959,8 @@ const i18n={
     mentionOwnerDesc:"Bot merespons saat seseorang @mention Anda di grup yang ada bot.",
     allMsgTitle:"Semua Pesan",
     allMsgDesc:"Bot merespons setiap pesan di grup. Volume tinggi \u2014 gunakan hati-hati.",
+    privateChatTitle:"Obrolan Pribadi",
+    privateChatDesc:"Bot merespons pesan langsung (1:1) yang dikirim ke bot, selain obrolan grup.",
     recommended:"Direkomendasikan",
     caution:"Hati-hati",
     saveTriggerModes:"Simpan Mode Trigger",
@@ -1031,6 +1049,8 @@ const i18n={
     mentionOwnerDesc:"I bot na-queta ir @le peth si hoth-chat.",
     allMsgTitle:"Ilya Quettar",
     allMsgDesc:"I bot na-queta na ilya quetta. R\u00edm \u2014 tiro-le.",
+    privateChatTitle:"D\u00ebl-Chat",
+    privateChatDesc:"I bot na-queta na peth d\u00edriel (1:1), anann na hoth-chat.",
     recommended:"Estellennen",
     caution:"Tirniel",
     saveTriggerModes:"Harya Lenn\u00eb Orthor",
@@ -1131,6 +1151,10 @@ function refreshUILang(){
   if(allTitle)allTitle.innerHTML=`${t("allMsgTitle")} <span class="badge badge-warn">${t("caution")}</span>`;
   const allDesc=document.querySelector("#cardAllMessages .toggle-desc");
   if(allDesc)allDesc.textContent=t("allMsgDesc");
+  const pvtTitle=document.querySelector("#cardAllowPrivate .toggle-title");
+  if(pvtTitle)pvtTitle.textContent=t("privateChatTitle");
+  const pvtDesc=document.querySelector("#cardAllowPrivate .toggle-desc");
+  if(pvtDesc)pvtDesc.textContent=t("privateChatDesc");
   // Save trigger modes button
   const saveTmBtn=document.querySelector("#panel-settings .card:first-child button");
   if(saveTmBtn)saveTmBtn.textContent=t("saveTriggerModes");
@@ -1548,6 +1572,7 @@ function updateToggleCards(){
     ["modeMentionBot","cardMentionBot"],
     ["modeMentionOwner","cardMentionOwner"],
     ["modeAllMessages","cardAllMessages"],
+    ["modeAllowPrivate","cardAllowPrivate"],
   ];
   for(const [inputId,cardId] of pairs){
     const checked=document.getElementById(inputId).checked;
@@ -1563,6 +1588,7 @@ async function loadTriggerModes(){
     document.getElementById("modeMentionBot").checked=!!modes.mention_bot;
     document.getElementById("modeMentionOwner").checked=!!modes.mention_owner;
     document.getElementById("modeAllMessages").checked=!!modes.all_messages;
+    document.getElementById("modeAllowPrivate").checked=!!modes.allow_private;
     updateToggleCards();
   }catch(e){console.error("trigger-modes",e)}
 }
@@ -1572,6 +1598,7 @@ async function saveTriggerModes(){
     mention_bot:document.getElementById("modeMentionBot").checked,
     mention_owner:document.getElementById("modeMentionOwner").checked,
     all_messages:document.getElementById("modeAllMessages").checked,
+    allow_private:document.getElementById("modeAllowPrivate").checked,
   };
   try{
     await api("/api/trigger-modes",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(modes)});

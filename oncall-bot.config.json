@@ -20,7 +20,8 @@
     "trigger_modes": {
       "mention_bot": true,
       "mention_owner": false,
-      "all_messages": false
+      "all_messages": false,
+      "allow_private": true
     }
   },
   "context": {
@@ -29,14 +30,14 @@
   },
   "opencode": {
     "username": "opencode",
-    "password": "72T7_MQ20ZVWrqG636yYDc1KFvvve1Dv2CjlOua4Nts",
+    "password": "21wARnD0DpxHgFJrApO5wa83RiDwYKHXu6j6XRe9DWA",
     "analysis_timeout_ms": 600000,
     "submit_timeout_ms": 30000,
     "poll_interval_ms": 3000,
     "poll_timeout_ms": 1800000,
     "tool_stuck_threshold_ms": 8000,
     "project_directory": "/Users/yixiang.wang/oncall-bot",
-    "base_url": "http://localhost:4096",
+    "base_url": "http://localhost:49696",
     "session_name_format": "{chat_name}-{date}"
   },
   "reply": {

@@ -21,6 +21,7 @@ describe("MessageFilter", () => {
         mention_bot: true,
         mention_owner: true,
         all_messages: false,
+        allow_private: false,
       },
     },
   };
@@ -35,9 +36,57 @@ describe("MessageFilter", () => {
     assert.equal(filter.shouldTrigger(events[1]), false);
   });
 
-  it("does NOT trigger on p2p messages", () => {
+  it("does NOT trigger on p2p messages when allow_private is disabled", () => {
     const filter = new MessageFilter(config);
     assert.equal(filter.shouldTrigger(events[2]), false);
+  });
+
+  it("triggers on p2p messages when allow_private is enabled", () => {
+    const filter = new MessageFilter({
+      lark: {
+        watch_chat_ids: [],
+        trigger: config.lark.trigger,
+        trigger_modes: { mention_bot: true, mention_owner: true, all_messages: false, allow_private: true },
+      },
+    });
+    assert.equal(filter.shouldTrigger(events[2]), true);
+  });
+
+  it("triggers on p2p messages without requiring @mention", () => {
+    const filter = new MessageFilter({
+      lark: {
+        watch_chat_ids: [],
+        trigger: config.lark.trigger,
+        trigger_modes: { mention_bot: false, mention_owner: false, all_messages: false, allow_private: true },
+      },
+    });
+    // p2p message with no mention should still trigger
+    const p2pNoMention = { ...events[2], content: "hello", message_id: "om_p2p_nomention" };
+    assert.equal(filter.shouldTrigger(p2pNoMention), true);
+  });
+
+  it("triggers on p2p messages with all_messages and allow_private enabled", () => {
+    const filter = new MessageFilter({
+      lark: {
+        watch_chat_ids: [],
+        trigger: config.lark.trigger,
+        trigger_modes: { mention_bot: false, mention_owner: false, all_messages: true, allow_private: true },
+      },
+    });
+    const p2pNoMention = { ...events[2], content: "hello", message_id: "om_p2p_all" };
+    assert.equal(filter.shouldTrigger(p2pNoMention), true);
+  });
+
+  it("does NOT trigger on p2p non-text messages even with allow_private", () => {
+    const filter = new MessageFilter({
+      lark: {
+        watch_chat_ids: [],
+        trigger: config.lark.trigger,
+        trigger_modes: { mention_bot: true, mention_owner: true, all_messages: false, allow_private: true },
+      },
+    });
+    const p2pImage = { ...events[3], chat_type: "p2p", message_id: "om_p2p_img" };
+    assert.equal(filter.shouldTrigger(p2pImage), false);
   });
 
   it("does NOT trigger on non-text message types", () => {
