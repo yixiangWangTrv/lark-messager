@@ -527,6 +527,114 @@ button:disabled{opacity:.6;cursor:not-allowed}
         <span class="note" id="triggerSaveStatus"></span>
       </div>
     </div>
+
+    <!-- @Owner Mention Settings -->
+    <div class="card" id="cardOwnerSettings" style="display:none">
+      <h3>@Owner Mention Settings</h3>
+      <p class="note" style="margin-bottom:16px">Configure reply identity and group filtering when @Owner mention triggers.</p>
+
+      <div class="field-group">
+        <label>Reply Identity</label>
+        <div class="intent-btns" id="ownerReplyIdentityBtns" style="margin-top:4px">
+          <div class="intent-btn active" data-identity="bot" onclick="selectOwnerReplyIdentity(this)">Bot</div>
+          <div class="intent-btn" data-identity="user" onclick="selectOwnerReplyIdentity(this)">User (Owner)</div>
+        </div>
+      </div>
+
+      <div class="field-group">
+        <label>Group Filter Mode</label>
+        <select id="ownerGroupFilterMode" onchange="onOwnerGroupFilterChange()">
+          <option value="none">None (all groups)</option>
+          <option value="whitelist">Whitelist (only selected groups)</option>
+          <option value="blacklist">Blacklist (exclude selected groups)</option>
+        </select>
+      </div>
+
+      <div class="field-group" id="ownerGroupIdsField" style="display:none">
+        <label>Group IDs (one per line)</label>
+        <textarea id="ownerGroupIds" placeholder="oc_xxxxxxxxxxxxx"></textarea>
+      </div>
+    </div>
+
+    <!-- Recording Settings -->
+    <div class="card">
+      <h3>Recording</h3>
+      <p class="note" style="margin-bottom:16px">Record triggered messages to a Lark Base table for tracking and review.</p>
+
+      <div class="toggle-card" id="cardRecordingEnabled" onclick="toggleRecordingEnabled()">
+        <div class="toggle-icon">&#x1F4DD;</div>
+        <div class="toggle-info">
+          <div class="toggle-title">Enable Recording</div>
+          <div class="toggle-desc">When enabled, each triggered message will be logged to the configured Lark Base table.</div>
+        </div>
+        <label class="toggle-switch" onclick="event.stopPropagation()">
+          <input type="checkbox" id="recordingEnabled" onchange="onRecordingToggleChange()">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div id="recordingSettings" style="display:none;margin-top:16px">
+        <div class="field-group">
+          <label>Record Trigger Conditions</label>
+          <div class="toggle-grid">
+            <div class="toggle-card compact" id="cardRecordMentionBot" onclick="toggleRecordingMode('recordMentionBot')">
+              <div class="toggle-info">
+                <div class="toggle-title">@Bot</div>
+                <div class="toggle-desc">Record messages that mention the bot.</div>
+              </div>
+              <label class="toggle-switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="recordMentionBot" onchange="onRecordingModeChange()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-card compact" id="cardRecordMentionOwner" onclick="toggleRecordingMode('recordMentionOwner')">
+              <div class="toggle-info">
+                <div class="toggle-title">@Owner</div>
+                <div class="toggle-desc">Record messages that mention configured owners.</div>
+              </div>
+              <label class="toggle-switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="recordMentionOwner" onchange="onRecordingModeChange()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-card compact" id="cardRecordAllMessages" onclick="toggleRecordingMode('recordAllMessages')">
+              <div class="toggle-info">
+                <div class="toggle-title">All Group Messages</div>
+                <div class="toggle-desc">Record all-message mode triggers.</div>
+              </div>
+              <label class="toggle-switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="recordAllMessages" onchange="onRecordingModeChange()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div class="toggle-card compact" id="cardRecordPrivate" onclick="toggleRecordingMode('recordPrivate')">
+              <div class="toggle-info">
+                <div class="toggle-title">Private Chat</div>
+                <div class="toggle-desc">Record direct-message triggers.</div>
+              </div>
+              <label class="toggle-switch" onclick="event.stopPropagation()">
+                <input type="checkbox" id="recordPrivate" onchange="onRecordingModeChange()">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+        <div class="field-group">
+          <label>Lark Base Table Link</label>
+          <input type="text" id="recordingBaseUrl" placeholder="https://.../base/...?...table=tbl..." style="width:100%">
+        </div>
+        <div class="field-group">
+          <label>Table Name (for new table creation)</label>
+          <input type="text" id="recordingTableName" placeholder="Oncall Bot Records" style="width:100%">
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <button onclick="saveRecordingConfig()">Save Recording Config</button>
+          <button class="secondary" onclick="initRecordingTable()" id="initTableBtn">Create New Table</button>
+          <span class="note" id="recordingSaveStatus"></span>
+        </div>
+        <p class="note" style="margin-top:8px">Paste the table link from Lark Base. Internal tokens are stored only for lark-cli writes. Fields: 群名, 消息总结, 消息链接, Thread ID, 消息类型, AI初步回复, 状态</p>
+      </div>
+    </div>
     <div class="card">
       <h3>Language</h3>
       <div class="form-row">
@@ -712,6 +820,7 @@ async function init(){
   refreshUILang();
   await loadPuaMode();
   await loadDistilledList();
+  await loadRecordingConfig();
 
   connectSSE();
 }
@@ -1565,6 +1674,7 @@ function toggleMode(inputId){
 
 function onToggleChange(){
   updateToggleCards();
+  showOwnerSettings();
 }
 
 function updateToggleCards(){
@@ -1589,7 +1699,16 @@ async function loadTriggerModes(){
     document.getElementById("modeMentionOwner").checked=!!modes.mention_owner;
     document.getElementById("modeAllMessages").checked=!!modes.all_messages;
     document.getElementById("modeAllowPrivate").checked=!!modes.allow_private;
+    ownerReplyIdentity = modes.mention_owner_reply_identity || "bot";
+    document.querySelectorAll("#ownerReplyIdentityBtns .intent-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.dataset.identity === ownerReplyIdentity);
+    });
+    const filter = modes.mention_owner_group_filter || { mode: "none", group_ids: [] };
+    document.getElementById("ownerGroupFilterMode").value = filter.mode || "none";
+    document.getElementById("ownerGroupIds").value = (filter.group_ids || []).join("\n");
+    onOwnerGroupFilterChange();
     updateToggleCards();
+    showOwnerSettings();
   }catch(e){console.error("trigger-modes",e)}
 }
 
@@ -1599,6 +1718,11 @@ async function saveTriggerModes(){
     mention_owner:document.getElementById("modeMentionOwner").checked,
     all_messages:document.getElementById("modeAllMessages").checked,
     allow_private:document.getElementById("modeAllowPrivate").checked,
+    mention_owner_reply_identity: ownerReplyIdentity,
+    mention_owner_group_filter: {
+      mode: document.getElementById("ownerGroupFilterMode").value,
+      group_ids: parseKeywordsTextarea("ownerGroupIds"),
+    },
   };
   try{
     await api("/api/trigger-modes",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(modes)});
@@ -1607,6 +1731,128 @@ async function saveTriggerModes(){
     el.style.color="#4caf50";
     setTimeout(()=>{el.textContent=""},3000);
   }catch(e){alert("Failed: "+e.message)}
+}
+
+// @Owner Mention Settings
+let ownerReplyIdentity = "bot";
+
+function selectOwnerReplyIdentity(btn) {
+  document.querySelectorAll("#ownerReplyIdentityBtns .intent-btn").forEach(x => x.classList.remove("active"));
+  btn.classList.add("active");
+  ownerReplyIdentity = btn.dataset.identity;
+}
+
+function onOwnerGroupFilterChange() {
+  const mode = document.getElementById("ownerGroupFilterMode").value;
+  document.getElementById("ownerGroupIdsField").style.display = mode === "none" ? "none" : "block";
+}
+
+function showOwnerSettings() {
+  const ownerOn = document.getElementById("modeMentionOwner").checked;
+  document.getElementById("cardOwnerSettings").style.display = ownerOn ? "block" : "none";
+}
+
+// Recording
+function toggleRecordingEnabled() {
+  const el = document.getElementById("recordingEnabled");
+  el.checked = !el.checked;
+  onRecordingToggleChange();
+}
+
+function onRecordingToggleChange() {
+  const enabled = document.getElementById("recordingEnabled").checked;
+  document.getElementById("recordingSettings").style.display = enabled ? "block" : "none";
+  const card = document.getElementById("cardRecordingEnabled");
+  if (enabled) card.classList.add("active");
+  else card.classList.remove("active");
+}
+
+function toggleRecordingMode(inputId) {
+  const el = document.getElementById(inputId);
+  el.checked = !el.checked;
+  onRecordingModeChange();
+}
+
+function onRecordingModeChange() {
+  const pairs = [
+    ["recordMentionBot", "cardRecordMentionBot"],
+    ["recordMentionOwner", "cardRecordMentionOwner"],
+    ["recordAllMessages", "cardRecordAllMessages"],
+    ["recordPrivate", "cardRecordPrivate"],
+  ];
+  for (const [inputId, cardId] of pairs) {
+    const card = document.getElementById(cardId);
+    if (document.getElementById(inputId).checked) card.classList.add("active");
+    else card.classList.remove("active");
+  }
+}
+
+async function loadRecordingConfig() {
+  try {
+    const cfg = await api("/api/recording");
+    const modes = cfg.modes || {};
+    document.getElementById("recordingEnabled").checked = !!cfg.enabled;
+    document.getElementById("recordMentionBot").checked = modes.mention_bot !== false;
+    document.getElementById("recordMentionOwner").checked = modes.mention_owner !== false;
+    document.getElementById("recordAllMessages").checked = modes.all_messages !== false;
+    document.getElementById("recordPrivate").checked = modes.allow_private !== false;
+    document.getElementById("recordingBaseUrl").value = cfg.lark_base?.url || "";
+    document.getElementById("recordingTableName").value = cfg.lark_base?.table_name || "Oncall Bot Records";
+    onRecordingToggleChange();
+    onRecordingModeChange();
+  } catch(e) { console.error("recording", e); }
+}
+
+async function saveRecordingConfig() {
+  const statusEl = document.getElementById("recordingSaveStatus");
+  statusEl.textContent = "Saving...";
+  statusEl.style.color = "var(--text-muted)";
+  try {
+    await api("/api/recording", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        enabled: document.getElementById("recordingEnabled").checked,
+        modes: {
+          mention_bot: document.getElementById("recordMentionBot").checked,
+          mention_owner: document.getElementById("recordMentionOwner").checked,
+          all_messages: document.getElementById("recordAllMessages").checked,
+          allow_private: document.getElementById("recordPrivate").checked,
+        },
+        lark_base: {
+          url: document.getElementById("recordingBaseUrl").value.trim(),
+          table_name: document.getElementById("recordingTableName").value.trim() || "Oncall Bot Records",
+        },
+      }),
+    });
+    statusEl.textContent = "Saved!";
+    statusEl.style.color = "var(--success)";
+    setTimeout(() => { statusEl.textContent = ""; }, 3000);
+  } catch(e) {
+    statusEl.textContent = `Error: ${e.message}`;
+    statusEl.style.color = "var(--danger)";
+  }
+}
+
+async function initRecordingTable() {
+  const btn = document.getElementById("initTableBtn");
+  const statusEl = document.getElementById("recordingSaveStatus");
+  btn.disabled = true;
+  statusEl.textContent = "Creating table...";
+  statusEl.style.color = "var(--text-muted)";
+  try {
+    const res = await api("/api/recording/init-table", { method: "POST" });
+    document.getElementById("recordingBaseUrl").value = res.url || "";
+    document.getElementById("recordingEnabled").checked = true;
+    onRecordingToggleChange();
+    statusEl.textContent = "Table created and saved!";
+    statusEl.style.color = "var(--success)";
+  } catch(e) {
+    statusEl.textContent = `Error: ${e.message}`;
+    statusEl.style.color = "var(--danger)";
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 // SSE

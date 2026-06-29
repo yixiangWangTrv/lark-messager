@@ -243,6 +243,59 @@ describe("OpenCodeClient", () => {
     );
   });
 
+  it("retries sendMessage once after connection recovery", async () => {
+    let calls = 0;
+    const config = {
+      opencode: {
+        ...baseConfig.opencode,
+        on_connection_error: async (_err, client) => {
+          client.updateConnection({ baseUrl: "http://localhost:4097", password: "new-secret" });
+          return true;
+        },
+      },
+    };
+
+    global.fetch = async (url, options = {}) => {
+      calls += 1;
+      if (calls === 1) {
+        throw new TypeError("fetch failed");
+      }
+
+      assert.equal(url, "http://localhost:4097/session/session-1/message?directory=%2Ftmp%2Fproject");
+      assert.match(options.headers.Authorization, /^Basic /);
+      return {
+        ok: true,
+        json: async () => ({ data: { parts: [{ type: "text", text: "recovered" }] } }),
+      };
+    };
+
+    const client = new OpenCodeClient(config);
+    const text = await client.sendMessage("session-1", "analyze this");
+
+    assert.equal(text, "recovered");
+    assert.equal(calls, 2);
+    assert.equal(config.opencode.base_url, "http://localhost:4097");
+    assert.equal(config.opencode.password, "new-secret");
+  });
+
+  it("keeps non-connection sendMessage failures unchanged", async () => {
+    global.fetch = async () => {
+      throw new Error("boom");
+    };
+
+    const client = new OpenCodeClient({
+      opencode: {
+        ...baseConfig.opencode,
+        on_connection_error: async () => true,
+      },
+    });
+
+    await assert.rejects(
+      () => client.sendMessage("session-1", "analyze this"),
+      /boom/
+    );
+  });
+
   it("submitMessage returns tracking object with sessionId and submittedAt", async () => {
     let capturedBody = null;
     global.fetch = async (url, options = {}) => {

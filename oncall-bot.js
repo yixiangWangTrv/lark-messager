@@ -35,6 +35,28 @@ const replySender = new ReplySender(config);
 const queue = new ChatQueue(config.concurrency);
 const triggerGuard = new TriggerGuard();
 
+async function reconnectOpencode() {
+  log("  opencode connection failed; re-detecting server...");
+  const configuredPort = Number(new URL(config.opencode.base_url).port || 80);
+  const detectedServers = prioritizeOpencodeServeProcesses(
+    await detectOpencodeServeProcesses(),
+    configuredPort,
+  );
+
+  for (const detected of detectedServers) {
+    const detectedUrl = `http://localhost:${detected.port}`;
+    opencode.updateConnection({ baseUrl: detectedUrl, password: detected.password });
+    if (await opencode.healthCheck()) {
+      log(`  rebound opencode serve to port ${detected.port}`);
+      return true;
+    }
+  }
+
+  return false;
+}
+
+opencode.onConnectionError = reconnectOpencode;
+
 // Check if a port is available by trying to connect
 async function isPortReachable(port) {
   try {
@@ -95,10 +117,7 @@ async function preflight() {
     );
     for (const detected of detectedServers) {
       const detectedUrl = `http://localhost:${detected.port}`;
-      config.opencode.base_url = detectedUrl;
-      config.opencode.password = detected.password;
-      opencode.baseUrl = detectedUrl;
-      opencode.password = detected.password;
+      opencode.updateConnection({ baseUrl: detectedUrl, password: detected.password });
       healthy = await opencode.healthCheck();
       if (healthy) {
         log(`✓ opencode serve found on port ${detected.port}`);
@@ -112,8 +131,7 @@ async function preflight() {
       log(`  no opencode serve running, starting on port ${port}...`);
       const proc = await startOpencodeServe(port, config.opencode.project_directory || process.cwd());
       const newUrl = `http://localhost:${port}`;
-      config.opencode.base_url = newUrl;
-      opencode.baseUrl = newUrl;
+      opencode.updateConnection({ baseUrl: newUrl });
       healthy = await opencode.healthCheck();
       if (!healthy) {
         proc.kill();
@@ -157,7 +175,7 @@ async function preflight() {
 }
 
 // Handle a triggered message
-async function handleTrigger(event) {
+async function handleTrigger(event, triggerMeta = {}) {
   const chatId = event.chat_id;
   const messageId = event.message_id;
   const senderId = event.sender_id;
@@ -172,6 +190,7 @@ async function handleTrigger(event) {
       queue,
       triggerGuard,
       contextFetcher,
+      triggerMeta,
       opencode: {
         ...opencode,
         async findOrCreateSession(sessionOptions, sessionMetadata = {}) {
@@ -196,7 +215,10 @@ async function handleTrigger(event) {
       replySender: {
         ...replySender,
         async sendReply(replyEvent, text, options) {
-          await replySender.sendReply(replyEvent, text, options);
+          const mergedOptions = triggerMeta.replyIdentity
+            ? { ...options, identity: triggerMeta.replyIdentity }
+            : options;
+          await replySender.sendReply(replyEvent, text, mergedOptions);
           if (text === getProcessingNotice(config)) {
             log("  sent processing notice");
           }
@@ -267,7 +289,8 @@ async function main() {
     identity: config.lark.listen_identity,
     onEvent: (event) => {
       if (filter.shouldTrigger(event)) {
-        handleTrigger(event);
+        const meta = filter.getTriggerMetadata(event);
+        handleTrigger(event, meta);
       }
     },
     onError: (err) => {
