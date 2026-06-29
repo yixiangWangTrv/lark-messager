@@ -21,7 +21,12 @@
       "mention_bot": true,
       "mention_owner": false,
       "all_messages": false,
-      "allow_private": true
+      "allow_private": true,
+      "mention_owner_reply_identity": "bot",
+      "mention_owner_group_filter": {
+        "mode": "none",
+        "group_ids": []
+      }
     }
   },
   "context": {
@@ -30,14 +35,14 @@
   },
   "opencode": {
     "username": "opencode",
-    "password": "21wARnD0DpxHgFJrApO5wa83RiDwYKHXu6j6XRe9DWA",
+    "password": "d-S2YirisEf2opOLbbaEQ5Md5LEKzK1dNHOuWtuLFB8",
     "analysis_timeout_ms": 600000,
     "submit_timeout_ms": 30000,
     "poll_interval_ms": 3000,
     "poll_timeout_ms": 1800000,
     "tool_stuck_threshold_ms": 8000,
     "project_directory": "/Users/yixiang.wang/oncall-bot",
-    "base_url": "http://localhost:49696",
+    "base_url": "http://localhost:63513",
     "session_name_format": "{chat_name}-{date}"
   },
   "reply": {
@@ -132,6 +137,22 @@
     "pr_review": {
       "keywords": [],
       "use_github_pr_url": true
+    }
+  },
+  "recording": {
+    "enabled": true,
+    "modes": {
+      "mention_bot": true,
+      "mention_owner": true,
+      "all_messages": true,
+      "allow_private": true,
+      "legacy_group_names": true
+    },
+    "lark_base": {
+      "url": "https://traveloka.sg.larksuite.com/base/X7hfbfkoAa93ItskyZDlDCOLgCb?table=tblr2QkH6Gc3eaET",
+      "app_token": "X7hfbfkoAa93ItskyZDlDCOLgCb",
+      "table_id": "tblr2QkH6Gc3eaET",
+      "table_name": "Oncall Bot Records"
     }
   }
 }
