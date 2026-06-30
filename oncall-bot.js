@@ -13,6 +13,7 @@ import { getProcessingNotice } from "./lib/processing-notice.js";
 import { acquireSingleInstanceLock } from "./lib/single-instance-lock.js";
 import { TriggerGuard } from "./lib/trigger-guard.js";
 import { processTrigger } from "./lib/trigger-orchestration.js";
+import { recordMessageOnly } from "./lib/recording-service.js";
 import { DashboardServer } from "./lib/dashboard-server.js";
 import { botEvents } from "./lib/bot-events.js";
 import { detectOpencodeServeProcesses, prioritizeOpencodeServeProcesses } from "./lib/opencode-serve-discovery.js";
@@ -253,6 +254,18 @@ async function handleTrigger(event, triggerMeta = {}) {
   }
 }
 
+async function handleRecordOnly(event, recordMeta = {}) {
+  const chatId = event.chat_id;
+  const messageId = event.message_id;
+  try {
+    const chatName = event.chat_name || await contextFetcher.getChatName(chatId);
+    await recordMessageOnly({ event, config, chatName, mode: recordMeta.mode });
+    log(`→ recorded (${messageId})`);
+  } catch (err) {
+    log(`✗ recording error: ${err.message}`);
+  }
+}
+
 // Main
 async function main() {
   let instanceLock;
@@ -288,9 +301,16 @@ async function main() {
   const listener = new EventListener({
     identity: config.lark.listen_identity,
     onEvent: (event) => {
-      if (filter.shouldTrigger(event)) {
+      const shouldTrigger = filter.shouldTrigger(event);
+      if (shouldTrigger) {
         const meta = filter.getTriggerMetadata(event);
         handleTrigger(event, meta);
+        return;
+      }
+
+      if (filter.shouldRecord(event)) {
+        const meta = filter.getRecordingMetadata(event);
+        handleRecordOnly(event, meta);
       }
     },
     onError: (err) => {

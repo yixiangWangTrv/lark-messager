@@ -143,6 +143,41 @@ describe("MessageFilter", () => {
       assert.equal(filter.shouldTrigger(event), false);
     });
 
+    it("records @owner when mention_owner trigger is disabled but recording mode is enabled", () => {
+      const filter = new MessageFilter({
+        lark: {
+          watch_chat_ids: [],
+          trigger: { ...config.lark.trigger, group_names: [] },
+          trigger_modes: { mention_bot: false, mention_owner: false, all_messages: false },
+        },
+        recording: {
+          enabled: true,
+          modes: { mention_owner: true },
+        },
+      });
+      const event = { ...events[4], content: "@张三 看下这个问题", message_id: "om_record_owner" };
+      assert.equal(filter.shouldTrigger(event), false);
+      assert.equal(filter.shouldRecord(event), true);
+      assert.deepEqual(filter.getRecordingMetadata(event), { shouldRecord: true, mode: "mention_owner" });
+    });
+
+    it("does not record @owner when mention_owner recording mode is disabled", () => {
+      const filter = new MessageFilter({
+        lark: {
+          watch_chat_ids: [],
+          trigger: { ...config.lark.trigger, group_names: [] },
+          trigger_modes: { mention_bot: false, mention_owner: false, all_messages: false },
+        },
+        recording: {
+          enabled: true,
+          modes: { mention_owner: false, all_messages: false },
+        },
+      });
+      const event = { ...events[4], content: "@张三 看下这个问题", message_id: "om_no_record_owner" };
+      assert.equal(filter.shouldTrigger(event), false);
+      assert.equal(filter.shouldRecord(event), false);
+    });
+
     it("triggers ALL messages when all_messages mode is enabled", () => {
       const filter = new MessageFilter({
         lark: {
