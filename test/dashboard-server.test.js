@@ -27,6 +27,10 @@ describe("DashboardServer", () => {
     },
   };
   const currentOpenCodeClient = {
+    updateConnectionArgs: [],
+    updateConnection(args) {
+      this.updateConnectionArgs.push(args);
+    },
     async findOrCreateSession(options) {
       currentClientCalls.push(options);
       if (currentClientError) {
@@ -118,6 +122,7 @@ describe("DashboardServer", () => {
   beforeEach(() => {
     constructorClientCalls.length = 0;
     currentClientCalls.length = 0;
+    currentOpenCodeClient.updateConnectionArgs = [];
     currentClientError = null;
     server.setOpenCodeClient(currentOpenCodeClient);
   });
@@ -173,6 +178,19 @@ describe("DashboardServer", () => {
     assert.match(html, /async function init\(\)[\s\S]*const cfg=await api\("\/api\/config"\);[\s\S]*loadIntentRoutingFields\(\);/);
     assert.match(html, /<span class="note" id="routingSaveStatus"><\/span>/);
     assert.match(html, /const statusEl=document\.getElementById\("routingSaveStatus"\);/);
+  });
+
+  it("GET / serves OpenCode project directory settings", async () => {
+    const res = await fetch(`${baseUrl}/`);
+    assert.equal(res.status, 200);
+
+    const html = await res.text();
+    assert.match(html, /<h3>OpenCode Project<\/h3>/);
+    assert.match(html, /<input type="text" id="opencodeProjectDir"/);
+    assert.match(html, /<button onclick="saveOpencodeProjectDir\(\)">Save Project Directory<\/button>/);
+    assert.match(html, /document\.getElementById\("opencodeProjectDir"\)\.value=cfg\.opencode\.project_directory/);
+    assert.match(html, /async function saveOpencodeProjectDir\(\)/);
+    assert.match(html, /JSON\.stringify\(\{opencode:\{project_directory:projectDir\}\}\)/);
   });
 
   it("dashboard server listens on localhost only", () => {
@@ -309,6 +327,29 @@ describe("DashboardServer", () => {
     assert.deepEqual(persisted.intent_routing.incident_analysis.keywords, ["investigate", "root cause"]);
     assert.deepEqual(persisted.intent_routing.pr_review.keywords, ["review my pr", "check this diff"]);
     assert.equal(persisted.intent_routing.pr_review.use_github_pr_url, false);
+  });
+
+  it("PUT /api/config persists project directory and updates the active opencode client", async () => {
+    const projectDir = join(tempDir, "alternate-project");
+    const res = await fetch(`${baseUrl}/api/config`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        opencode: {
+          project_directory: projectDir,
+        },
+      }),
+    });
+
+    assert.equal(res.status, 200);
+    const data = await res.json();
+    assert.equal(data.opencode.project_directory, projectDir);
+    assert.deepEqual(currentOpenCodeClient.updateConnectionArgs, [
+      { projectDirectory: projectDir },
+    ]);
+
+    const persisted = JSON.parse(readFileSync(server._configPath, "utf-8"));
+    assert.equal(persisted.opencode.project_directory, projectDir);
   });
 
   it("POST /api/distill/start uses prompt.common_task.response_format for distill language selection", async () => {

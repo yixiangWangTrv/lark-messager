@@ -636,6 +636,19 @@ button:disabled{opacity:.6;cursor:not-allowed}
       </div>
     </div>
     <div class="card">
+      <h3>OpenCode Project</h3>
+      <p class="note" style="margin-bottom:12px">Triggered messages use this directory as the OpenCode project context.</p>
+      <div class="field-group">
+        <label for="opencodeProjectDir">Project Directory</label>
+        <input type="text" id="opencodeProjectDir" placeholder="/path/to/project" style="width:100%">
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <button onclick="saveOpencodeProjectDir()">Save Project Directory</button>
+        <span class="note" id="opencodeProjectSaveStatus"></span>
+      </div>
+      <p class="note" style="margin-top:8px">New OpenCode sessions and messages will use the updated directory immediately.</p>
+    </div>
+    <div class="card">
       <h3>Language</h3>
       <div class="form-row">
         <label>Response Language:</label>
@@ -800,6 +813,7 @@ async function init(){
   try{
     const cfg=await api("/api/config");
     if(cfg.dashboard&&cfg.dashboard.port)document.getElementById("settingsPort").value=cfg.dashboard.port;
+    if(cfg.opencode&&cfg.opencode.project_directory)document.getElementById("opencodeProjectDir").value=cfg.opencode.project_directory;
     intentRouting=cfg.intent_routing||{};
     loadIntentRoutingFields();
     // Sync theme from server if no local preference
@@ -1634,6 +1648,27 @@ async function savePort(){
     await api("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({dashboard:{port}})});
     alert("Port saved. Restart required.");
   }catch(e){alert("Failed: "+e.message)}
+}
+
+async function saveOpencodeProjectDir(){
+  const statusEl=document.getElementById("opencodeProjectSaveStatus");
+  const projectDir=document.getElementById("opencodeProjectDir").value.trim();
+  if(!projectDir){
+    statusEl.textContent="Project directory is required.";
+    statusEl.style.color="var(--danger)";
+    return;
+  }
+  statusEl.textContent="Saving...";
+  statusEl.style.color="var(--text-muted)";
+  try{
+    const cfg=await api("/api/config",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({opencode:{project_directory:projectDir}})});
+    document.getElementById("opencodeProjectDir").value=cfg.opencode?.project_directory||projectDir;
+    statusEl.textContent="Saved.";
+    statusEl.style.color="var(--success)";
+  }catch(e){
+    statusEl.textContent=`Error: ${e.message}`;
+    statusEl.style.color="var(--danger)";
+  }
 }
 
 // Theme

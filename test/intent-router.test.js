@@ -162,6 +162,7 @@ describe("intent routing", () => {
     assert.match(prompt, /^You answer the user's chat request\./);
     assert.match(prompt, /Answer directly from context\. No Datadog unless explicitly asked\./);
     assert.match(prompt, /Keep it concise\./);
+    assert.match(prompt, /Do not trigger deployments, restarts, service starts, GitHub Actions\/workflow runs, CI\/CD pipelines, AWS deployments/);
     assert.match(prompt, /Read trigger metadata first before using any context\. Use only the declared context scope\./);
     assert.match(prompt, /This trigger came from a thread\. Use only thread context\. Do not use main-chat context\./);
     assert.match(prompt, /Trigger metadata:/);
@@ -222,6 +223,7 @@ describe("intent routing", () => {
     });
 
     assert.match(prompt, /A new trigger message has arrived in this existing session\./);
+    assert.match(prompt, /Do not trigger deployments, restarts, service starts, GitHub Actions\/workflow runs, CI\/CD pipelines, AWS deployments/);
     assert.match(prompt, /Re-evaluate the new trigger first\. Use only the declared context scope\./);
     assert.match(prompt, /Read trigger metadata first before using any context\./);
     assert.match(prompt, /sender_id: ou_user2/);
