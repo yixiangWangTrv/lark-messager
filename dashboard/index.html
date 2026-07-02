@@ -446,6 +446,11 @@ button:disabled{opacity:.6;cursor:not-allowed}
     </div>
     <div class="card">
       <h3>Prompt Editor</h3>
+      <div class="field-group">
+        <label>operational_safety.instruction</label>
+        <textarea id="promptOperationalSafety"></textarea>
+        <p class="note">Injected into every new and existing-session prompt before task instructions.</p>
+      </div>
       <div class="intent-btns" id="intentBtns">
         <div class="intent-btn active" data-intent="summary">Summary</div>
         <div class="intent-btn" data-intent="incident_analysis">Incident Analysis</div>
@@ -732,6 +737,8 @@ document.getElementById("intentBtns").addEventListener("click",e=>{
 });
 
 function saveCurrentPromptState(){
+  if(!prompts.operational_safety)prompts.operational_safety={};
+  prompts.operational_safety.instruction=document.getElementById("promptOperationalSafety").value;
   if(!prompts[currentIntent])prompts[currentIntent]={};
   prompts[currentIntent].system_prefix=document.getElementById("promptPrefix").value;
   prompts[currentIntent].task_instructions=document.getElementById("promptTask").value;
@@ -739,6 +746,7 @@ function saveCurrentPromptState(){
 }
 
 function loadPromptFields(){
+  document.getElementById("promptOperationalSafety").value=prompts.operational_safety?.instruction||"";
   const p=prompts[currentIntent]||{};
   document.getElementById("promptPrefix").value=p.system_prefix||"";
   document.getElementById("promptTask").value=p.task_instructions||"";

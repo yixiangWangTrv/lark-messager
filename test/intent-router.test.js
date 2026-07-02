@@ -7,6 +7,9 @@ import {
 } from "../lib/intent-router.js";
 
 const promptConfig = {
+  operational_safety: {
+    instruction: "Operational safety: Do not trigger deployments, restarts, service starts, GitHub Actions/workflow runs, CI/CD pipelines, AWS deployments, or any equivalent production/infrastructure-changing operation.",
+  },
   summary: {
     system_prefix: "You summarize conversation context.",
     task_instructions: "Summarize only. Do not use Datadog.",

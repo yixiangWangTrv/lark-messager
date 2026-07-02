@@ -55,6 +55,7 @@ describe("DashboardServer", () => {
       dashboard: { port: nextPort++, enabled: true },
       opencode: { base_url: "http://localhost:3000", project_directory: tempDir },
       prompt: {
+        operational_safety: { instruction: "no deploys" },
         summary: { system_prefix: "sum", task_instructions: "sum task", response_format: "Chinese" },
         incident_analysis: { system_prefix: "inc", task_instructions: "inc task", response_format: "English" },
         pr_review: { system_prefix: "pr", task_instructions: "pr task", response_format: "English" },
@@ -150,6 +151,8 @@ describe("DashboardServer", () => {
     assert.match(html, />Summary<\/div>/);
     assert.match(html, />Incident Analysis<\/div>/);
     assert.match(html, />PR Review<\/div>/);
+    assert.match(html, /<textarea id="promptOperationalSafety"><\/textarea>/);
+    assert.match(html, /operational_safety\.instruction/);
     assert.match(html, /data-intent="common_task">Common Task<\/div>/);
     assert.match(html, /id="cardPuaCommonTask"/);
     assert.match(html, /togglePua\('puaCommonTask'\)/);
@@ -203,6 +206,7 @@ describe("DashboardServer", () => {
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(data.summary.system_prefix, "sum");
+    assert.equal(data.operational_safety.instruction, "no deploys");
     assert.equal(data.common_task.system_prefix, "common");
     assert.equal("other" in data, false);
   });
@@ -250,17 +254,22 @@ describe("DashboardServer", () => {
           system_prefix: "common updated",
           response_format: "English",
         },
+        operational_safety: {
+          instruction: "no deploys updated",
+        },
       }),
     });
 
     assert.equal(res.status, 200);
     const data = await res.json();
     assert.equal(data.common_task.system_prefix, "common updated");
+    assert.equal(data.operational_safety.instruction, "no deploys updated");
     assert.equal(data.common_task.response_format, "English");
     assert.equal(data.common_task.task_instructions, "common task");
 
     const persisted = JSON.parse(readFileSync(server._configPath, "utf-8"));
     assert.equal(persisted.prompt.common_task.system_prefix, "common updated");
+    assert.equal(persisted.prompt.operational_safety.instruction, "no deploys updated");
     assert.equal(persisted.prompt.common_task.response_format, "English");
     assert.equal(persisted.prompt.common_task.task_instructions, "common task");
   });
